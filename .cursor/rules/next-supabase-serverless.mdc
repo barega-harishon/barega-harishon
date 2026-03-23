@@ -1,0 +1,12 @@
+---
+description: Next.js, Supabase, and serverless implementation rules
+alwaysApply: true
+---
+
+# Next Supabase Serverless
+
+- Prefer Next.js Server Actions for database mutations.
+- Use API routes for webhooks, cron handlers, and external callbacks.
+- Enforce Supabase RLS policies on all relevant tables.
+- For Vercel cron endpoints, validate `CRON_SECRET` from header or query.
+- Keep Vercel compatibility; avoid server-dependent heavy runtime patterns.

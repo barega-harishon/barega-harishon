@@ -1,0 +1,12 @@
+---
+description: Hebrew-only UI and strict RTL conventions
+alwaysApply: true
+---
+
+# Hebrew RTL UI
+
+- All user-facing UI text must be in Hebrew.
+- Root layout must keep `<html lang="he" dir="rtl">`.
+- Use Tailwind logical utilities only: `ms/me`, `ps/pe`.
+- Never use `ml/mr/pl/pr` in UI code.
+- Keep mobile-first responsive behavior for every screen.

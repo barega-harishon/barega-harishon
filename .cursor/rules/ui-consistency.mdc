@@ -1,0 +1,12 @@
+---
+description: Consistent design system and reusable UI components
+alwaysApply: true
+---
+
+# UI Consistency
+
+- Reuse shared UI components from `components/ui` across all pages.
+- Keep style tokens centralized in `app/globals.css`.
+- Do not create one-off button/input/card/modal variants in pages.
+- Use the same spacing scale and typography patterns app-wide.
+- Keep interactions and states consistent (hover, focus, disabled, errors).

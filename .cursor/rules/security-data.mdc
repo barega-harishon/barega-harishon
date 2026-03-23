@@ -1,0 +1,12 @@
+---
+description: Security, validation, and safe error handling
+alwaysApply: true
+---
+
+# Security and Data
+
+- Never hardcode secrets or API keys; use environment variables only.
+- Keep sensitive keys server-side only (for example service role keys).
+- Validate and sanitize user input before any database write.
+- Do not expose internal errors to clients; show safe Hebrew messages.
+- Log detailed errors only on the server.

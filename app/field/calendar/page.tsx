@@ -1,0 +1,100 @@
+import Link from "next/link";
+
+import { listMyAssignedProjectsCalendarMonth } from "@/actions/projects";
+import {
+  groupCalendarRowsByLocalDay,
+  ProjectCalendarMonth,
+} from "@/components/projects/project-calendar-month";
+import { ProjectCalendarLegend } from "@/components/projects/calendar-legend";
+import { Button } from "@/components/ui/button";
+import { PROJECT_STATUS_KANBAN_ORDER, PROJECT_STATUS_LABELS, type ProjectStatus } from "@/types/projects";
+import { fieldCalendarPath, parseCalendarStatusFilter } from "@/utils/calendar-query";
+import { formatHebrewMonthYear } from "@/utils/date";
+
+export const dynamic = "force-dynamic";
+
+export default async function FieldCalendarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ y?: string; m?: string; st?: string | string[] }>;
+}) {
+  const sp = await searchParams;
+  const now = new Date();
+  let year = Number.parseInt(sp.y ?? "", 10);
+  let month = Number.parseInt(sp.m ?? "", 10);
+
+  if (!Number.isFinite(year) || year < 2000 || year > 2100) {
+    year = now.getFullYear();
+  }
+  if (!Number.isFinite(month) || month < 1 || month > 12) {
+    month = now.getMonth() + 1;
+  }
+
+  const statusFilter = parseCalendarStatusFilter(sp.st);
+  const rows = await listMyAssignedProjectsCalendarMonth(year, month, { statusFilter });
+  const byDay = groupCalendarRowsByLocalDay(rows);
+
+  const prev = new Date(year, month - 2, 1);
+  const next = new Date(year, month, 1);
+  const py = prev.getFullYear();
+  const pm = prev.getMonth() + 1;
+  const ny = next.getFullYear();
+  const nm = next.getMonth() + 1;
+
+  const baseThis = { year, month };
+  const basePrev = { year: py, month: pm };
+  const baseNext = { year: ny, month: nm };
+  const baseToday = { year: now.getFullYear(), month: now.getMonth() + 1 };
+
+  return (
+    <main className="container-page py-6">
+      <h1 className="text-xl font-semibold">היומן שלי</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        רק פרויקטים שאתם משובצים אליהם.{" "}
+        <Link className="underline-offset-2 hover:underline" href="/projects/calendar">
+          יומן ארגוני מלא
+        </Link>
+      </p>
+
+      <div className="page-header-row mb-4 mt-6 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">{formatHebrewMonthYear(year, month)}</h2>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link href={fieldCalendarPath(basePrev.year, basePrev.month, { status: statusFilter })}>
+              קודם
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href={fieldCalendarPath(baseNext.year, baseNext.month, { status: statusFilter })}>
+              הבא
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href={fieldCalendarPath(baseToday.year, baseToday.month, { status: statusFilter })}>
+              היום
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        <Button asChild size="sm" variant={!statusFilter?.length ? "default" : "outline"}>
+          <Link href={fieldCalendarPath(baseThis.year, baseThis.month)}>הכול</Link>
+        </Button>
+        {PROJECT_STATUS_KANBAN_ORDER.map((st: ProjectStatus) => {
+          const active = statusFilter?.length === 1 && statusFilter[0] === st;
+          return (
+            <Button asChild key={st} size="sm" variant={active ? "default" : "outline"}>
+              <Link href={fieldCalendarPath(baseThis.year, baseThis.month, { status: [st] })}>
+                {PROJECT_STATUS_LABELS[st]}
+              </Link>
+            </Button>
+          );
+        })}
+      </div>
+
+      <ProjectCalendarMonth byDay={byDay} month={month} year={year} />
+      <ProjectCalendarLegend />
+    </main>
+  );
+}

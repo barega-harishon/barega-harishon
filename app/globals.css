@@ -1,26 +1,177 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* יסוד יוקרתי — שמפניה / נחושת / ברונז (לוגו) */
+  --background: #faf7f3;
+  --foreground: #2c2c2c;
+  --card: #ffffff;
+  --card-foreground: #2c2c2c;
+  --primary: #a67c52;
+  --primary-foreground: #fffbf7;
+  --muted: #ede8e1;
+  --muted-foreground: #5c534a;
+  --destructive: #b91c1c;
+  --destructive-foreground: #fef2f2;
+  --border: #e0d6ca;
+  --input: #ffffff;
+  --ring: #d4a373;
+  --radius: 0.875rem;
+  /* סרגל עליון כהה */
+  --header: #2c2c2c;
+  --header-foreground: #f5f5f4;
+  --accent-copper: #d4a373;
+  --accent-champagne: #f5d1b4;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-from-start {
+  from {
+    opacity: 0;
+    transform: translateX(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* מגירת ניווט מ־inline-end (ב־RTL: משמאל) */
+@keyframes slide-from-end {
+  from {
+    opacity: 0;
+    transform: translateX(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-header: var(--header);
+  --color-header-foreground: var(--header-foreground);
+  --font-sans: var(--font-heebo);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #171717;
+    --foreground: #fafaf9;
+    --card: #262626;
+    --card-foreground: #fafaf9;
+    --muted: #404040;
+    --muted-foreground: #a8a29e;
+    --border: #404040;
+    --input: #262626;
+    --primary: #c49a6c;
+    --primary-foreground: #fffbf7;
+    --ring: #d4a373;
+    --header: #1a1a1a;
+    --header-foreground: #f5f5f4;
   }
 }
 
+* {
+  border-color: var(--border);
+}
+
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-heebo), Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+  body {
+    background-image: linear-gradient(
+      165deg,
+      #fdfcfa 0%,
+      var(--background) 38%,
+      #f3ebe2 100%
+    );
+    background-attachment: fixed;
+  }
+}
+
+/* כותרות עמוד ראשיות — מרכוז בעמודים מאומתים / שטח */
+.app-authenticated-main h1 {
+  text-align: center;
+}
+
+.app-authenticated-main main h1 + p {
+  text-align: center;
+}
+
+@media (min-width: 1024px) {
+  .app-authenticated-main .page-header-row,
+  .container-page .page-header-row {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .app-authenticated-main .page-header-row > div:first-child,
+  .container-page .page-header-row > div:first-child {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .app-authenticated-main .page-intro {
+    margin-inline: auto;
+    max-width: 48rem;
+    text-align: center;
+  }
+}
+
+.container-page {
+  margin-inline: auto;
+  width: min(100%, 72rem);
+  /* בטיחות מסך (נotch) + ריווח בסיס */
+  padding-inline-start: max(1rem, env(safe-area-inset-left, 0px));
+  padding-inline-end: max(1rem, env(safe-area-inset-right, 0px));
+}
+
+@media (min-width: 640px) {
+  .container-page {
+    padding-inline-start: max(1.5rem, env(safe-area-inset-left, 0px));
+    padding-inline-end: max(1.5rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* קישורים בטקסט — מיקוד ברור */
+a:focus-visible {
+  outline: none;
+}
+
+a:focus-visible:not([class*="ring-"]) {
+  border-radius: 0.25rem;
+  box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--ring);
 }

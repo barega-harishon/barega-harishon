@@ -1,0 +1,12 @@
+---
+description: Core architecture and clean code standards
+alwaysApply: true
+---
+
+# Core Architecture
+
+- Build with Next.js App Router + TypeScript and keep modules focused.
+- Use clear English names for functions, variables, and file names.
+- Prefer small files; split components/services before files become large.
+- Keep layering explicit: UI -> validation -> server actions -> data layer.
+- Avoid `any`; use proper types/interfaces in `types/`.

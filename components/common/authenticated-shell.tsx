@@ -1,0 +1,24 @@
+import { MobileTopBar } from "@/components/common/mobile-top-bar";
+import { SiteSidebar } from "@/components/common/site-sidebar";
+import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { buildMainNavItems } from "@/lib/nav/build-main-nav-items";
+
+export async function AuthenticatedShell({ children }: { children: React.ReactNode }) {
+  const role = await getCurrentAppRole();
+  const items = buildMainNavItems(role);
+
+  return (
+    <div className="flex min-h-full flex-1 flex-col lg:pe-64">
+      <aside
+        className="fixed inset-y-0 end-0 z-40 hidden w-64 max-w-full flex-col border-s border-white/10 bg-header lg:flex"
+        aria-label="ניווט ראשי"
+      >
+        <SiteSidebar items={items} />
+      </aside>
+      <MobileTopBar items={items} />
+      <main className="app-authenticated-main flex min-h-0 flex-1 flex-col lg:items-center lg:px-4 xl:px-8">
+        <div className="flex w-full max-w-[72rem] flex-1 flex-col">{children}</div>
+      </main>
+    </div>
+  );
+}

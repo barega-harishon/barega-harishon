@@ -1,5 +1,8 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+**ברגע הראשון** — מערכת ניהול השכרת ציוד לאירועים (עברית, RTL, Supabase).  
+מפת מסכים וקוד: [`docs/BUILT.md`](docs/BUILT.md) · נראות והערות: [`docs/UI_NOTES.md`](docs/UI_NOTES.md).
+
 ## Getting Started
 
 First, run the development server:
