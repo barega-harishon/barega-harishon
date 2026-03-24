@@ -47,7 +47,6 @@ export function LoginForm({ nextPath }: LoginFormProps) {
             autoComplete="current-password"
             required
             onKeyUp={(e) => setCapsLockOn(e.getModifierState("CapsLock"))}
-            onFocus={(e) => setCapsLockOn(e.getModifierState("CapsLock"))}
             onBlur={() => setCapsLockOn(false)}
           />
           <button
