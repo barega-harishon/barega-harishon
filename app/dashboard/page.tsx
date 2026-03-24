@@ -25,6 +25,8 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const role = await getCurrentAppRole();
   const showFinance = isOfficeOrAdminRole(role);
+  const canManageTeam =
+    role === "admin" || role === "office" || role === "operations";
 
   const [statusRows, upcoming, lowStock, monthlyPayments] = await Promise.all([
     getDashboardStatusCounts(),
@@ -40,11 +42,18 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-semibold tracking-tight">דשבורד</h1>
           <p className="text-sm text-muted-foreground">תמונת מצב מהירה לפי ההרשאות שלך.</p>
         </div>
-        {showFinance ? (
-          <Button asChild size="sm" variant="outline">
-            <Link href="/reports">דוחות עסקיים</Link>
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
+          {canManageTeam ? (
+            <Button asChild size="sm" variant="outline">
+              <Link href="/employees">צוות</Link>
+            </Button>
+          ) : null}
+          {showFinance ? (
+            <Button asChild size="sm" variant="outline">
+              <Link href="/reports">דוחות עסקיים</Link>
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

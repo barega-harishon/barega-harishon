@@ -14,6 +14,15 @@ export interface EmployeeRow {
   hourly_rate: string | number | null;
   availability_note: string | null;
   created_at: string;
+  phone: string | null;
+  email: string | null;
+  national_id: string | null;
+  bank_name: string | null;
+  bank_branch: string | null;
+  bank_account_number: string | null;
+  bank_account_holder: string | null;
+  documents_notes: string | null;
+  licenses_notes: string | null;
 }
 
 export interface EmployeeOption {

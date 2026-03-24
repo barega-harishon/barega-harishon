@@ -43,7 +43,7 @@
   }
 }
 
-/* מגירת ניווט מ־inline-end (ב־RTL: משמאל) */
+/* מגירת ניווט מ־inline-start (ב־RTL: מימין) — כניסה עדינה */
 @keyframes slide-from-end {
   from {
     opacity: 0;

@@ -8,9 +8,9 @@ export async function AuthenticatedShell({ children }: { children: React.ReactNo
   const items = buildMainNavItems(role);
 
   return (
-    <div className="flex min-h-full flex-1 flex-col lg:pe-64">
+    <div className="flex min-h-full flex-1 flex-col lg:ps-64">
       <aside
-        className="fixed inset-y-0 end-0 z-40 hidden w-64 max-w-full flex-col border-s border-white/10 bg-header lg:flex"
+        className="fixed inset-y-0 start-0 z-40 hidden w-64 max-w-full flex-col border-e border-white/10 bg-header lg:flex"
         aria-label="ניווט ראשי"
       >
         <SiteSidebar items={items} />

@@ -50,7 +50,8 @@ export function NavSideDrawer({
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/55 data-[state=open]:animate-[fade-in_160ms_ease-out]" />
         <Dialog.Content
           className={cn(
-            "fixed inset-y-0 end-0 z-50 flex w-[min(20rem,88vw)] flex-col border-s border-border bg-card text-card-foreground shadow-xl outline-none",
+            "fixed inset-y-0 start-0 z-50 flex w-[min(20rem,88vw)] flex-col border-e border-border bg-card text-card-foreground shadow-xl outline-none",
+            /* ב־RTL: סרגל ב־start (ימין) — אנימציית slide-from-end מתאימה לכניסה מימין */
             "data-[state=open]:animate-[slide-from-end_200ms_ease-out]",
           )}
         >

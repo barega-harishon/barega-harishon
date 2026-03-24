@@ -15,6 +15,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ברגע הראשון",
   description: "מערכת ניהול השכרת ציוד לאירועים – עברית ו־RTL",
+  icons: {
+    icon: [{ url: "/brand/logo.png", type: "image/png" }],
+    apple: "/brand/logo.png",
+  },
   appleWebApp: {
     capable: true,
     title: "ברגע הראשון",

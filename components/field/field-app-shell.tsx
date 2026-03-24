@@ -3,9 +3,9 @@ import { FieldSidebar } from "@/components/field/field-sidebar";
 
 export function FieldAppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-full flex-col bg-background pb-[env(safe-area-inset-bottom,0px)] pt-[env(safe-area-inset-top,0px)] lg:pe-64">
+    <div className="flex min-h-full flex-col bg-background pb-[env(safe-area-inset-bottom,0px)] pt-[env(safe-area-inset-top,0px)] lg:ps-64">
       <aside
-        className="fixed inset-y-0 end-0 z-40 hidden w-64 max-w-full flex-col border-s border-white/10 bg-header lg:flex"
+        className="fixed inset-y-0 start-0 z-40 hidden w-64 max-w-full flex-col border-e border-white/10 bg-header lg:flex"
         aria-label="ניווט שטח"
       >
         <FieldSidebar />

@@ -118,9 +118,9 @@ export function ProjectAssignmentsSection({
           <h3 className="text-sm font-semibold">שיבוץ עובד</h3>
           {employeeOptions.length === 0 ? (
             <p className="text-sm text-amber-800 dark:text-amber-200">
-              אין רשומות בטבלת העובדים.{" "}
+              אין רשומות בצוות.{" "}
               <a className="font-medium underline" href="/employees">
-                הוסיפו עובדים
+                הוסיפו באנשי צוות
               </a>{" "}
               ואז חזרו לשבץ כאן.
             </p>

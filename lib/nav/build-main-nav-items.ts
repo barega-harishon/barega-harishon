@@ -15,7 +15,7 @@ export function buildMainNavItems(role: AppRole | null): NavDrawerItem[] {
     ...(isFieldRole(role) ? ([{ href: "/field", label: "שטח" }] as const) : []),
     { href: "/projects/new", label: "פרויקט חדש" },
     { href: "/equipment", label: "מלאי ציוד" },
-    { href: "/employees", label: "עובדים" },
+    { href: "/employees", label: "צוות" },
     { href: "/trucks", label: "משאיות" },
     ...(showCollections
       ? ([

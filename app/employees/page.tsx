@@ -23,9 +23,10 @@ export default async function EmployeesPage() {
     <main className="container-page py-8">
       <div className="page-header-row mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">עובדים</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">צוות</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            מאגר לשיבוץ לפרויקטים (ראש צוות, נהג, פועל). הוספה למשרד / תפעול / אדמין.
+            אנשי צוות ב-Supabase (טבלת <code className="rounded bg-muted px-1">employees</code>) — שיבוץ
+            לפרויקטים, פרטי קשר, בנק ומסמכים. הוספה: משרד / תפעול / אדמין.
           </p>
         </div>
         <Button asChild variant="outline">
@@ -58,6 +59,7 @@ export default async function EmployeesPage() {
               <tr>
                 <th className="px-4 py-3 font-medium">שם</th>
                 <th className="px-4 py-3 font-medium">סוג</th>
+                <th className="px-4 py-3 font-medium">טלפון</th>
                 <th className="px-4 py-3 font-medium">תעריף שעתי</th>
                 <th className="px-4 py-3 font-medium">הערת זמינות</th>
               </tr>
@@ -69,10 +71,13 @@ export default async function EmployeesPage() {
                   <tr className="border-b border-border last:border-0" key={row.id}>
                     <td className="px-4 py-3 font-medium">{row.name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{EMPLOYEE_TYPE_LABELS[t]}</td>
+                    <td className="max-w-[10rem] truncate px-4 py-3 text-muted-foreground">
+                      {row.phone ?? "—"}
+                    </td>
                     <td className="px-4 py-3 tabular-nums">
                       {t === "hourly" ? formatCurrencyIl(row.hourly_rate) : "—"}
                     </td>
-                    <td className="max-w-[16rem] truncate px-4 py-3 text-muted-foreground">
+                    <td className="max-w-[14rem] truncate px-4 py-3 text-muted-foreground">
                       {row.availability_note ?? "—"}
                     </td>
                   </tr>

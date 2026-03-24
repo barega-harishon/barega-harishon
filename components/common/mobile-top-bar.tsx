@@ -22,6 +22,7 @@ export function MobileTopBar({ items }: { items: NavDrawerItem[] }) {
   return (
     <header className="sticky top-0 z-30 border-b border-white/10 bg-header text-header-foreground backdrop-blur-sm lg:hidden">
       <div className="container-page flex w-full items-center justify-between gap-3 py-2.5">
+        <NavSideDrawer items={items} footer={signOutForm} title="תפריט ראשי" />
         <Link
           href="/"
           className="flex shrink-0 items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d4a373] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--header)]"
@@ -31,11 +32,10 @@ export function MobileTopBar({ items }: { items: NavDrawerItem[] }) {
             alt={LOGO_ALT}
             width={200}
             height={56}
-            className="h-9 w-auto max-w-[min(11rem,50vw)] object-contain object-start"
+            className="h-9 w-auto max-w-[min(11rem,50vw)] object-contain object-end"
             priority
           />
         </Link>
-        <NavSideDrawer items={items} footer={signOutForm} title="תפריט ראשי" />
       </div>
     </header>
   );
