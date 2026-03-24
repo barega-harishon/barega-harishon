@@ -13,7 +13,7 @@ const createSchema = z.object({
   projectId: z.string().uuid(),
   /** למשרד/תפעול — עובד שעליו מדווחים; בשטח לא נשלח */
   employeeId: z.string().uuid().optional(),
-  workDate: z.string().min(8, "נא לבחור תאריך"),
+  workDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "נא לבחור תאריך תקין"),
   hours: z.coerce.number().min(0.25, "מינימום רבע שעה").max(24, "מקסימום 24 שעות"),
   note: z
     .string()
@@ -31,6 +31,15 @@ function toHoursNumber(v: unknown): number {
     return Number.isFinite(n) ? n : 0;
   }
   return 0;
+}
+
+function isMissingMigrationError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const code = "code" in error ? (error as { code?: string }).code : undefined;
+  const message = "message" in error ? String((error as { message?: unknown }).message ?? "") : "";
+  return code === "42P01" || code === "42703" || message.includes("does not exist");
 }
 
 export async function listTimeEntriesForProject(projectId: string): Promise<TimeEntryRow[]> {
@@ -218,6 +227,13 @@ export async function createTimeEntry(payload: unknown): Promise<ActionResult<{ 
 
     if (error || !data) {
       console.error("createTimeEntry", error);
+      if (isMissingMigrationError(error)) {
+        return {
+          success: false,
+          message:
+            "תשתית דיווח השעות טרם הושלמה בסביבת השרת. הריצו מיגרציות Supabase ועדכנו את בסיס הנתונים.",
+        };
+      }
       return { success: false, message: getSafeClientErrorMessage() };
     }
 

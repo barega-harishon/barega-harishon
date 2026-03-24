@@ -16,7 +16,7 @@
 | פרטי לקוח | `/clients/[id]` | פרטי קשר, עריכה (משרד/אדמין), טבלת פרויקטים |
 | קנבן פרויקטים | `/projects/kanban` | עמודות לפי סטטוס; עדכון סטטוס מהכרטיס (משרד/תפעול/אדמין) |
 | יומן פרויקטים | `/projects/calendar` | אירוע → הקמה → פירוק; סינון סטטוס `?st=` (מופרד בפסיקים); שעה בכרטיס; `?y=` / `?m=` |
-| אזור שטח (PWA) | `/field` | בית, **פרויקטים משובצים**, **יומן אישי**, **דיווח שעות**; ניווט תחתון; קישור מההדר לתפקיד `field` |
+| אזור שטח (PWA) | `/field` | בית, **פרויקטים משובצים**, **יומן אישי**, **דיווח שעות**; סרגל צד בדסקטופ והמבורגר במובייל; קישור מהניווט לתפקיד `field` |
 | פרויקט בשטח | `/field/projects/[id]` | תצוגה מהירה: תאריכים, צוות, **עדכון סטטוס** (שטח בלבד), דיווח שעות עם `?project=`; קישור לפרויקט המלא |
 | פרויקט חדש | `/projects/new` | לקוח קיים או לקוח מהיר + תאריכים |
 | פרטי פרויקט | `/projects/[id]` | סטטוס, פרטים, **דיווח שעות** (טבלה + הוספה משרד/תפעול), **שיבוץ עובדים**, **משאיות**, **PDF**, **גבייה** (משרד), סכום, אתר, מדיה, ציוד |
@@ -54,7 +54,7 @@
 | רכיבי UI | `components/ui/` | כפתור, קלט, טקסט־ארה, כרטיס, מודאל |
 | התקנת PWA | `components/common/install-pwa-panel.tsx` | `beforeinstallprompt` + הנחיות Safari |
 | רכיבי פרויקטים | `components/projects/` | טפסים, תג סטטוס, מדיה, ציוד, **משאיות לפרויקט**, **יומן חודשי**, **דיווח שעות (משרד)** |
-| אזור שטח | `components/field/` | מעטפת אפליקציה, ניווט תחתון, טופס דיווח שעות |
+| אזור שטח | `components/field/` | מעטפת אפליקציה, סרגל צד + מגירת המבורגר, טופס דיווח שעות |
 | טופס ציבורי | `components/inquiry/` | `PublicInquiryForm` |
 | רכיבי מלאי | `components/equipment/` | טפסי קטלוג ציוד |
 | רכיבי דשבורד | `components/dashboard/` | גרף תשלומים (`PaymentBars`) |
@@ -77,7 +77,7 @@
 - **עברית + RTL** ב־root layout.
 - **התחברות** ל־Supabase + **רשימת פרויקטים**, **קנבן** (`/projects/kanban`), **יצירה**, **דף פרטים**, **עדכון סטטוס**.
 - **לקוחות**: רשימה לבחירה + טופס "לקוח חדש" בעמוד יצירת פרויקט; מסכי `/clients`, `/clients/new`, `/clients/[id]` (עריכה משרד/אדמין); סינון פרויקטים לפי `?client=`; **חיפוש** פרויקטים ב־`/projects?q=`.
-- **PWA בסיסי**: `app/manifest.ts` (כולל `icons` מ־`/icon`), `app/icon.tsx`, `viewport.themeColor`, `appleWebApp` ב־layout; בדף **התחברות** — `InstallPwaPanel` (התקנה ב־Chrome/Edge או הנחיות ל־iOS).
+- **PWA בסיסי**: `app/manifest.ts` (כולל `icons` מ־`/brand/logo.png`), `metadata.icons` ב־`app/layout.tsx`, `viewport.themeColor`, `appleWebApp`; בדף **התחברות** — `InstallPwaPanel` (התקנה ב־Chrome/Edge או הנחיות ל־iOS).
 - **טופס ציבורי**: הגבלת קצב בסיסית לפי IP ב־`submitPublicInquiryFromForm` (זיכרון מקומי למופע).
 - **פרטי אתר** (`project_site_details`): טופס טקסט + **העלאת תמונות** ל־`project-site-photos` ו**סקיצה** ל־`project-sketches` (חתימת URL לתצוגה).
 - **שיבוץ עובדים** (`assignments` + `employees`): מסך `/employees`, שיבוץ מדף פרויקט (הוספה למשרד/תפעול/אדמין; הסרה אדמין בלבד לפי RLS).
@@ -108,3 +108,11 @@
 - חיבור/ייצוא **חשבונית** חיצונית, Realtime מלאי, גאנט מתקדם.
 
 עדכנו מסמך זה כשמוסיפים מודולים חדשים.
+
+## Checklist פרודקשן קצר
+
+- [ ] כל מיגרציות Supabase רצות בפרודקשן (כולל `20260326120000_employees_team_fields` ו־`20260326123000_storage_policies_harden`).
+- [ ] `CRON_SECRET` מוגדר ונתיב `/api/cron` מאומת עם `Authorization: Bearer <secret>`.
+- [ ] `NEXT_PUBLIC_SITE_URL` תואם לדומיין הפעיל.
+- [ ] smoke בדפים: `/`, `/login`, `/dashboard`, `/employees`, `/reports`.
+- [ ] לוגו נטען מ־`/brand/logo.png` גם בממשק וגם ב־manifest.

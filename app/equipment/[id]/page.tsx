@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { listEquipmentBatchAvailability } from "@/actions/equipment-batches";
 import { getEquipmentRowById } from "@/actions/equipment-catalog";
+import { EquipmentBatchesPanel } from "@/components/equipment/equipment-batches-panel";
 import { DeleteEquipmentButton } from "@/components/equipment/delete-equipment-button";
 import { EditEquipmentForm } from "@/components/equipment/edit-equipment-form";
 import { Button } from "@/components/ui/button";
@@ -21,6 +23,7 @@ export default async function EditEquipmentPage({
     notFound();
   }
 
+  const batches = await listEquipmentBatchAvailability(equipment.id);
   const showDelete = role === "admin";
 
   return (
@@ -33,6 +36,7 @@ export default async function EditEquipmentPage({
       </div>
       <div className="max-w-2xl space-y-8">
         <EditEquipmentForm equipment={equipment} />
+        <EquipmentBatchesPanel batches={batches} equipmentId={equipment.id} />
         {showDelete ? (
           <DeleteEquipmentButton equipmentId={equipment.id} equipmentName={equipment.name} />
         ) : null}

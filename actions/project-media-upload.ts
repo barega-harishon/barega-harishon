@@ -37,7 +37,7 @@ async function upsertSiteDetails(
   const row = await loadSiteRow(supabase, projectId);
   const now = new Date().toISOString();
 
-  await supabase.from("project_site_details").upsert(
+  const { error } = await supabase.from("project_site_details").upsert(
     {
       project_id: projectId,
       access_notes: row?.access_notes ?? null,
@@ -51,6 +51,11 @@ async function upsertSiteDetails(
     },
     { onConflict: "project_id" },
   );
+
+  if (error) {
+    console.error("upsertSiteDetails db error", error);
+    throw new Error("DB_UPSERT_FAILED");
+  }
 }
 
 export async function uploadProjectSitePhotos(

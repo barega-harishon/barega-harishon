@@ -1,13 +1,20 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { createClient } from "@/actions/clients";
+import { createClient, lookupExistingClient, type ClientLookupCandidate } from "@/actions/clients";
 import type { ClientOption } from "@/actions/clients";
 import { createProjectFromForm } from "@/actions/projects";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Modal,
+  ModalContent,
+  ModalDescription,
+  ModalHeader,
+  ModalTitle,
+} from "@/components/ui/modal";
 import { cn } from "@/utils/cn";
 
 const selectClassName =
@@ -23,6 +30,17 @@ export function NewProjectForm({ initialClients }: NewProjectFormProps) {
   const [showNewClient, setShowNewClient] = useState(false);
   const [clientError, setClientError] = useState<string | null>(null);
   const [clientPending, startClientTransition] = useTransition();
+  const [quickClientName, setQuickClientName] = useState("");
+  const [quickClientPhone, setQuickClientPhone] = useState("");
+  const [quickClientEmail, setQuickClientEmail] = useState("");
+  const [quickClientAddress, setQuickClientAddress] = useState("");
+  const [quickClientNationalId, setQuickClientNationalId] = useState("");
+  const [lookupCandidates, setLookupCandidates] = useState<ClientLookupCandidate[]>([]);
+  const [selectedLookupId, setSelectedLookupId] = useState<string>("");
+  const [lookupOpen, setLookupOpen] = useState(false);
+  const [autofillLocked, setAutofillLocked] = useState(false);
+  const [manualEditEnabled, setManualEditEnabled] = useState(false);
+  const lookupReqRef = useRef(0);
 
   const [projectState, projectAction, projectPending] = useActionState(
     createProjectFromForm,
@@ -38,14 +56,14 @@ export function NewProjectForm({ initialClients }: NewProjectFormProps) {
   function handleQuickClientSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const formData = new FormData(form);
 
     startClientTransition(async () => {
       const result = await createClient({
-        name: formData.get("name"),
-        phone: formData.get("phone"),
-        email: formData.get("email"),
-        address: formData.get("address"),
+        name: quickClientName,
+        phone: quickClientPhone,
+        email: quickClientEmail,
+        address: quickClientAddress,
+        nationalId: quickClientNationalId,
       });
 
       if (result.success && result.data) {
@@ -56,11 +74,59 @@ export function NewProjectForm({ initialClients }: NewProjectFormProps) {
         setShowNewClient(false);
         setClientError(null);
         form.reset();
+        setQuickClientName("");
+        setQuickClientPhone("");
+        setQuickClientEmail("");
+        setQuickClientAddress("");
+        setQuickClientNationalId("");
+        setAutofillLocked(false);
+        setManualEditEnabled(false);
       } else {
         setClientError(result.message);
       }
     });
   }
+
+  function applyCandidate(c: ClientLookupCandidate) {
+    setQuickClientName(c.name ?? "");
+    setQuickClientPhone(c.phone ?? "");
+    setQuickClientEmail(c.email ?? "");
+    setQuickClientAddress(c.address ?? "");
+    setQuickClientNationalId(c.national_id ?? "");
+    setAutofillLocked(true);
+    setManualEditEnabled(false);
+    setLookupOpen(false);
+  }
+
+  useEffect(() => {
+    if (!showNewClient) {
+      return;
+    }
+    const lookupKey = `${quickClientNationalId.trim()}|${quickClientPhone.trim()}|${quickClientEmail
+      .trim()
+      .toLowerCase()}`;
+    if (!lookupKey.replace(/\|/g, "")) {
+      return;
+    }
+    const t = window.setTimeout(async () => {
+      const reqId = ++lookupReqRef.current;
+      const { matches } = await lookupExistingClient({
+        nationalId: quickClientNationalId,
+        phone: quickClientPhone,
+        email: quickClientEmail,
+        source: "new-project",
+      });
+      if (reqId !== lookupReqRef.current) {
+        return;
+      }
+      if (matches.length > 0) {
+        setLookupCandidates(matches);
+        setSelectedLookupId(matches[0]?.id ?? "");
+        setLookupOpen(true);
+      }
+    }, 500);
+    return () => window.clearTimeout(t);
+  }, [showNewClient, quickClientNationalId, quickClientPhone, quickClientEmail]);
 
   return (
     <div className="space-y-8">
@@ -71,7 +137,16 @@ export function NewProjectForm({ initialClients }: NewProjectFormProps) {
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => setShowNewClient((v) => !v)}
+            onClick={() =>
+              setShowNewClient((v) => {
+                const next = !v;
+                if (next) {
+                  setAutofillLocked(false);
+                  setManualEditEnabled(false);
+                }
+                return next;
+              })
+            }
           >
             {showNewClient ? "סגירת טופס לקוח" : "לקוח חדש"}
           </Button>
@@ -91,15 +166,26 @@ export function NewProjectForm({ initialClients }: NewProjectFormProps) {
                 <Input
                   id="qc-name"
                   name="name"
+                  disabled={autofillLocked && !manualEditEnabled}
+                  onChange={(e) => setQuickClientName(e.target.value)}
                   required
                   placeholder="שם חברה / איש קשר"
+                  value={quickClientName}
                 />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium" htmlFor="qc-phone">
                   טלפון
                 </label>
-                <Input id="qc-phone" name="phone" type="tel" placeholder="050-0000000" />
+                <Input
+                  id="qc-phone"
+                  name="phone"
+                  onChange={(e) => setQuickClientPhone(e.target.value)}
+                  placeholder="050-0000000"
+                  type="tel"
+                  value={quickClientPhone}
+                  disabled={autofillLocked && !manualEditEnabled}
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium" htmlFor="qc-email">
@@ -108,8 +194,25 @@ export function NewProjectForm({ initialClients }: NewProjectFormProps) {
                 <Input
                   id="qc-email"
                   name="email"
+                  onChange={(e) => setQuickClientEmail(e.target.value)}
                   type="email"
                   placeholder="אופציונלי"
+                  value={quickClientEmail}
+                  disabled={autofillLocked && !manualEditEnabled}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium" htmlFor="qc-national-id">
+                  ח״פ / ת״ז
+                </label>
+                <Input
+                  id="qc-national-id"
+                  inputMode="numeric"
+                  name="nationalId"
+                  onChange={(e) => setQuickClientNationalId(e.target.value)}
+                  placeholder="אופציונלי"
+                  value={quickClientNationalId}
+                  disabled={autofillLocked && !manualEditEnabled}
                 />
               </div>
               <div className="space-y-1.5 sm:col-span-2">
@@ -119,10 +222,23 @@ export function NewProjectForm({ initialClients }: NewProjectFormProps) {
                 <Input
                   id="qc-address"
                   name="address"
+                  onChange={(e) => setQuickClientAddress(e.target.value)}
                   placeholder="כתובת לחשבונית / קשר"
+                  value={quickClientAddress}
+                  disabled={autofillLocked && !manualEditEnabled}
                 />
               </div>
             </div>
+            {autofillLocked ? (
+              <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  checked={manualEditEnabled}
+                  onChange={(e) => setManualEditEnabled(e.target.checked)}
+                  type="checkbox"
+                />
+                עריכה ידנית של פרטי לקוח מזוהה
+              </label>
+            ) : null}
             {clientError ? (
               <p className="text-sm text-destructive">{clientError}</p>
             ) : null}
@@ -131,6 +247,68 @@ export function NewProjectForm({ initialClients }: NewProjectFormProps) {
             </Button>
           </form>
         ) : null}
+        <Modal onOpenChange={setLookupOpen} open={lookupOpen}>
+          <ModalContent>
+            <ModalHeader>
+              <ModalTitle>נמצא לקוח קיים</ModalTitle>
+              <ModalDescription>
+                האם זה אותו לקוח? אם תאשר, נמלא את הפרטים אוטומטית.
+              </ModalDescription>
+            </ModalHeader>
+            {lookupCandidates.length > 0 ? (
+              <div className="space-y-1 text-sm">
+                {lookupCandidates.length > 1 ? (
+                  <div className="space-y-2">
+                    <p>נמצאו כמה לקוחות מתאימים. בחרו אחד:</p>
+                    <select
+                      className="flex h-10 w-full rounded-[var(--radius)] border border-border bg-input px-3 py-2 text-sm"
+                      onChange={(e) => setSelectedLookupId(e.target.value)}
+                      value={selectedLookupId}
+                    >
+                      {lookupCandidates.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} | {c.phone ?? "ללא טלפון"} | {c.email ?? "ללא אימייל"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+                {(() => {
+                  const selected =
+                    lookupCandidates.find((c) => c.id === selectedLookupId) ?? lookupCandidates[0];
+                  if (!selected) {
+                    return null;
+                  }
+                  return (
+                    <div className="space-y-1">
+                      <p><strong>שם:</strong> {selected.name}</p>
+                      <p><strong>טלפון:</strong> {selected.phone ?? "—"}</p>
+                      <p><strong>דוא״ל:</strong> {selected.email ?? "—"}</p>
+                      <p><strong>כתובת:</strong> {selected.address ?? "—"}</p>
+                    </div>
+                  );
+                })()}
+              </div>
+            ) : null}
+            <div className="mt-4 flex justify-end gap-2">
+              <Button onClick={() => setLookupOpen(false)} type="button" variant="outline">
+                לא, זה לקוח אחר
+              </Button>
+              <Button
+                onClick={() => {
+                  const selected =
+                    lookupCandidates.find((c) => c.id === selectedLookupId) ?? lookupCandidates[0];
+                  if (selected) {
+                    applyCandidate(selected);
+                  }
+                }}
+                type="button"
+              >
+                כן, זה הלקוח
+              </Button>
+            </div>
+          </ModalContent>
+        </Modal>
 
         <form action={projectAction} className={cn("space-y-4", showNewClient && "mt-6")}>
           <div className="space-y-1.5">

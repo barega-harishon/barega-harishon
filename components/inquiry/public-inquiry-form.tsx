@@ -1,19 +1,154 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 
+import { lookupExistingClient, type ClientLookupCandidate } from "@/actions/clients";
 import { submitPublicInquiryFromForm } from "@/actions/public-inquiry";
-import type { ActionResult } from "@/types/common";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Modal,
+  ModalContent,
+  ModalDescription,
+  ModalHeader,
+  ModalTitle,
+} from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
+import type { ActionResult } from "@/types/common";
+
+const CLADDING_SWATCH_OPTIONS = [
+  { label: "שחור", value: "שחור", code: "RAL 9005", hex: "#0A0A0A" },
+  { label: "אפור כהה", value: "אפור כהה", code: "RAL 7016", hex: "#30343F" },
+  { label: "כחול נייבי", value: "כחול נייבי", code: "RAL 5003", hex: "#1D2C55" },
+  { label: "כחול רויאל", value: "כחול רויאל", code: "RAL 5002", hex: "#123F8A" },
+  { label: "לבן", value: "לבן", code: "RAL 9016", hex: "#F5F7FA" },
+] as const;
 
 export function PublicInquiryForm() {
   const [state, action, pending] = useActionState(
     submitPublicInquiryFromForm,
     null as ActionResult<{ projectId: string; trackingToken: string | null }> | null,
   );
+  const [clientPhone, setClientPhone] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+  const [nationalId, setNationalId] = useState("");
+  const [setupStartsAt, setSetupStartsAt] = useState("");
+  const [eventStartsAt, setEventStartsAt] = useState("");
+  const [eventEndsAt, setEventEndsAt] = useState("");
+  const [teardownAt, setTeardownAt] = useState("");
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [sketch, setSketch] = useState<File | null>(null);
+  const [clientError, setClientError] = useState<string | null>(null);
+  const [dateError, setDateError] = useState<string | null>(null);
+  const [filesError, setFilesError] = useState<string | null>(null);
+  const [lookupCandidates, setLookupCandidates] = useState<ClientLookupCandidate[]>([]);
+  const [selectedLookupId, setSelectedLookupId] = useState<string>("");
+  const [lookupOpen, setLookupOpen] = useState(false);
+  const [clientName, setClientName] = useState("");
+  const [clientAddress, setClientAddress] = useState("");
+  const [autofillLocked, setAutofillLocked] = useState(false);
+  const [manualEditEnabled, setManualEditEnabled] = useState(false);
+  const [claddingColor, setCladdingColor] = useState("");
+  const lookupReqRef = useRef(0);
+
+  const totalPhotoMb = useMemo(
+    () => photos.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024),
+    [photos],
+  );
+
+  function validateClient() {
+    if (!clientPhone.trim() && !clientEmail.trim()) {
+      setClientError("נא למלא לפחות טלפון או דוא״ל.");
+      return false;
+    }
+    setClientError(null);
+    return true;
+  }
+
+  function validateDates() {
+    const setup = setupStartsAt ? new Date(setupStartsAt).getTime() : null;
+    const start = eventStartsAt ? new Date(eventStartsAt).getTime() : null;
+    const end = eventEndsAt ? new Date(eventEndsAt).getTime() : null;
+    const tear = teardownAt ? new Date(teardownAt).getTime() : null;
+
+    if (setup && start && setup > start) {
+      setDateError("תאריך הקמה חייב להיות לפני תחילת האירוע.");
+      return false;
+    }
+    if (start && end && start > end) {
+      setDateError("תחילת האירוע חייבת להיות לפני סיום האירוע.");
+      return false;
+    }
+    if (end && tear && end > tear) {
+      setDateError("סיום האירוע חייב להיות לפני זמן הפירוק.");
+      return false;
+    }
+    setDateError(null);
+    return true;
+  }
+
+  function validateFiles(nextPhotos: File[], nextSketch: File | null) {
+    if (nextPhotos.length > 8) {
+      setFilesError("אפשר להעלות עד 8 תמונות.");
+      return false;
+    }
+    for (const p of nextPhotos) {
+      if (p.size > 5 * 1024 * 1024) {
+        setFilesError(`התמונה "${p.name}" גדולה מ־5MB.`);
+        return false;
+      }
+    }
+    if (nextSketch && nextSketch.size > 8 * 1024 * 1024) {
+      setFilesError("קובץ הסקיצה גדול מ־8MB.");
+      return false;
+    }
+    setFilesError(null);
+    return true;
+  }
+
+  function onSubmitValidate() {
+    const okClient = validateClient();
+    const okDates = validateDates();
+    const okFiles = validateFiles(photos, sketch);
+    return okClient && okDates && okFiles;
+  }
+
+  function applyCandidate(c: ClientLookupCandidate) {
+    setClientName(c.name ?? "");
+    setClientPhone(c.phone ?? "");
+    setClientEmail(c.email ?? "");
+    setClientAddress(c.address ?? "");
+    setNationalId(c.national_id ?? "");
+    setAutofillLocked(true);
+    setManualEditEnabled(false);
+    setLookupOpen(false);
+  }
+
+  useEffect(() => {
+    const lookupKey = `${nationalId.trim()}|${clientPhone.trim()}|${clientEmail.trim().toLowerCase()}`;
+    if (!lookupKey.replace(/\|/g, "")) {
+      return;
+    }
+    const t = window.setTimeout(async () => {
+      const reqId = ++lookupReqRef.current;
+      const { matches } = await lookupExistingClient({
+        nationalId,
+        phone: clientPhone,
+        email: clientEmail,
+        source: "public-inquiry",
+      });
+      if (reqId !== lookupReqRef.current) {
+        return;
+      }
+      if (matches.length > 0) {
+        setLookupCandidates(matches);
+        setSelectedLookupId(matches[0]?.id ?? "");
+        setLookupOpen(true);
+      }
+    }, 500);
+    return () => window.clearTimeout(t);
+  }, [nationalId, clientPhone, clientEmail]);
 
   if (state?.success && state.data?.projectId) {
     const trackHref = state.data.trackingToken
@@ -48,8 +183,15 @@ export function PublicInquiryForm() {
   }
 
   return (
-    <form action={action} className="relative space-y-8">
-      {/* honeypot – בוטים */}
+    <form
+      action={action}
+      className="relative space-y-8"
+      onSubmit={(e) => {
+        if (!onSubmitValidate()) {
+          e.preventDefault();
+        }
+      }}
+    >
       <div aria-hidden="true" className="absolute -start-[9999px] h-0 w-0 overflow-hidden opacity-0">
         <label htmlFor="company">חברה</label>
         <input autoComplete="off" defaultValue="" id="company" name="company" tabIndex={-1} type="text" />
@@ -62,28 +204,98 @@ export function PublicInquiryForm() {
             <label className="text-sm font-medium" htmlFor="clientName">
               שם מלא <span className="text-destructive">*</span>
             </label>
-            <Input id="clientName" name="clientName" required type="text" />
+            <Input
+              autoComplete="name"
+              id="clientName"
+              name="clientName"
+              disabled={autofillLocked && !manualEditEnabled}
+              onChange={(e) => setClientName(e.target.value)}
+              required
+              type="text"
+              value={clientName}
+            />
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium" htmlFor="clientPhone">
               טלפון
             </label>
-            <Input id="clientPhone" name="clientPhone" type="tel" />
+            <Input
+              autoComplete="tel"
+              id="clientPhone"
+              inputMode="tel"
+              name="clientPhone"
+              onBlur={() => {
+                validateClient();
+              }}
+              onChange={(e) => setClientPhone(e.target.value)}
+              type="tel"
+              value={clientPhone}
+              disabled={autofillLocked && !manualEditEnabled}
+            />
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium" htmlFor="clientEmail">
               דוא״ל
             </label>
-            <Input id="clientEmail" name="clientEmail" type="email" />
+            <Input
+              autoComplete="email"
+              id="clientEmail"
+              inputMode="email"
+              name="clientEmail"
+              onBlur={() => {
+                validateClient();
+              }}
+              onChange={(e) => setClientEmail(e.target.value)}
+              type="email"
+              value={clientEmail}
+              disabled={autofillLocked && !manualEditEnabled}
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <label className="text-sm font-medium" htmlFor="nationalId">
+              ח״פ / ת״ז
+            </label>
+            <Input
+              id="nationalId"
+              inputMode="numeric"
+              name="nationalId"
+              onChange={(e) => setNationalId(e.target.value)}
+              value={nationalId}
+              disabled={autofillLocked && !manualEditEnabled}
+            />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <label className="text-sm font-medium" htmlFor="clientAddress">
               כתובת (אופציונלי)
             </label>
-            <Input id="clientAddress" name="clientAddress" type="text" />
+            <Input
+              autoComplete="street-address"
+              id="clientAddress"
+              name="clientAddress"
+              onChange={(e) => setClientAddress(e.target.value)}
+              type="text"
+              value={clientAddress}
+              disabled={autofillLocked && !manualEditEnabled}
+            />
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">נא למלא לפחות טלפון או דוא״ל.</p>
+        {autofillLocked ? (
+          <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              checked={manualEditEnabled}
+              onChange={(e) => setManualEditEnabled(e.target.checked)}
+              type="checkbox"
+            />
+            עריכה ידנית של פרטי לקוח מזוהה
+          </label>
+        ) : null}
+        {clientError ? (
+          <p aria-live="polite" className="text-xs text-destructive">
+            {clientError}
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">נא למלא לפחות טלפון או דוא״ל.</p>
+        )}
       </section>
 
       <section className="space-y-4">
@@ -99,27 +311,57 @@ export function PublicInquiryForm() {
             <label className="text-sm font-medium" htmlFor="setupStartsAt">
               תאריך ושעת הקמה
             </label>
-            <Input id="setupStartsAt" name="setupStartsAt" type="datetime-local" />
+            <Input
+              id="setupStartsAt"
+              name="setupStartsAt"
+              onBlur={validateDates}
+              onChange={(e) => setSetupStartsAt(e.target.value)}
+              type="datetime-local"
+            />
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium" htmlFor="eventStartsAt">
               תחילת האירוע <span className="text-destructive">*</span>
             </label>
-            <Input id="eventStartsAt" name="eventStartsAt" required type="datetime-local" />
+            <Input
+              id="eventStartsAt"
+              name="eventStartsAt"
+              onBlur={validateDates}
+              onChange={(e) => setEventStartsAt(e.target.value)}
+              required
+              type="datetime-local"
+            />
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium" htmlFor="eventEndsAt">
               סיום האירוע
             </label>
-            <Input id="eventEndsAt" name="eventEndsAt" type="datetime-local" />
+            <Input
+              id="eventEndsAt"
+              name="eventEndsAt"
+              onBlur={validateDates}
+              onChange={(e) => setEventEndsAt(e.target.value)}
+              type="datetime-local"
+            />
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium" htmlFor="teardownAt">
               תאריך ושעת פירוק
             </label>
-            <Input id="teardownAt" name="teardownAt" type="datetime-local" />
+            <Input
+              id="teardownAt"
+              name="teardownAt"
+              onBlur={validateDates}
+              onChange={(e) => setTeardownAt(e.target.value)}
+              type="datetime-local"
+            />
           </div>
         </div>
+        {dateError ? (
+          <p aria-live="polite" className="text-xs text-destructive">
+            {dateError}
+          </p>
+        ) : null}
       </section>
 
       <section className="space-y-4">
@@ -131,10 +373,38 @@ export function PublicInquiryForm() {
           <Textarea id="accessNotes" name="accessNotes" rows={3} />
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium" htmlFor="claddingColor">
-            צבע חיפוי
-          </label>
-          <Input id="claddingColor" name="claddingColor" type="text" />
+          <p className="text-sm font-medium">צבע חיפוי</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {CLADDING_SWATCH_OPTIONS.map((opt) => {
+              const selected = claddingColor === opt.value;
+              return (
+                <label
+                  key={opt.value}
+                  className={`flex cursor-pointer flex-col items-center rounded-[var(--radius)] border p-3 text-center transition ${
+                    selected
+                      ? "border-primary bg-primary/10 ring-1 ring-primary/40"
+                      : "border-border bg-card hover:bg-muted/40"
+                  }`}
+                >
+                  <input
+                    checked={selected}
+                    className="sr-only"
+                    name="claddingColor"
+                    onChange={() => setCladdingColor(opt.value)}
+                    type="radio"
+                    value={opt.value}
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="mb-2 h-10 w-10 rounded-full border border-black/15 shadow-sm"
+                    style={{ backgroundColor: opt.hex }}
+                  />
+                  <span className="text-sm font-medium">{opt.label}</span>
+                  <span className="text-xs text-muted-foreground">{opt.code}</span>
+                </label>
+              );
+            })}
+          </div>
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium" htmlFor="notes">
@@ -156,8 +426,21 @@ export function PublicInquiryForm() {
             id="photos"
             multiple
             name="photos"
+            onChange={(e) => {
+              const next = Array.from(e.target.files ?? []);
+              setPhotos(next);
+              validateFiles(next, sketch);
+            }}
             type="file"
           />
+          {photos.length > 0 ? (
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p>נבחרו {photos.length} תמונות (סה״כ {totalPhotoMb.toFixed(1)}MB)</p>
+              {photos.map((f) => (
+                <p key={`${f.name}-${f.size}`}>- {f.name}</p>
+              ))}
+            </div>
+          ) : null}
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium" htmlFor="sketch">
@@ -168,13 +451,28 @@ export function PublicInquiryForm() {
             className="block w-full text-sm text-muted-foreground file:me-4 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground"
             id="sketch"
             name="sketch"
+            onChange={(e) => {
+              const next = e.target.files?.[0] ?? null;
+              setSketch(next);
+              validateFiles(photos, next);
+            }}
             type="file"
           />
+          {sketch ? (
+            <p className="text-xs text-muted-foreground">
+              נבחרה סקיצה: {sketch.name} ({(sketch.size / (1024 * 1024)).toFixed(1)}MB)
+            </p>
+          ) : null}
         </div>
+        {filesError ? (
+          <p aria-live="polite" className="text-xs text-destructive">
+            {filesError}
+          </p>
+        ) : null}
       </section>
 
       {state && !state.success ? (
-        <p className="text-sm text-destructive" role="alert">
+        <p aria-live="assertive" className="text-sm text-destructive" role="alert">
           {state.message}
         </p>
       ) : null}
@@ -184,6 +482,69 @@ export function PublicInquiryForm() {
           {pending ? "שולחים…" : "שליחת פנייה"}
         </Button>
       </div>
+
+      <Modal onOpenChange={setLookupOpen} open={lookupOpen}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>נמצא לקוח קיים</ModalTitle>
+            <ModalDescription>
+              האם זה הלקוח שברצונך להשתמש בפרטיו?
+            </ModalDescription>
+          </ModalHeader>
+          {lookupCandidates.length > 0 ? (
+            <div className="space-y-1 text-sm">
+              {lookupCandidates.length > 1 ? (
+                <div className="space-y-2">
+                  <p>נמצאו כמה לקוחות מתאימים. בחרו אחד:</p>
+                  <select
+                    className="flex h-10 w-full rounded-[var(--radius)] border border-border bg-input px-3 py-2 text-sm"
+                    onChange={(e) => setSelectedLookupId(e.target.value)}
+                    value={selectedLookupId}
+                  >
+                    {lookupCandidates.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} | {c.phone ?? "ללא טלפון"} | {c.email ?? "ללא אימייל"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+              {(() => {
+                const selected =
+                  lookupCandidates.find((c) => c.id === selectedLookupId) ?? lookupCandidates[0];
+                if (!selected) {
+                  return null;
+                }
+                return (
+                  <div className="space-y-1">
+                    <p><strong>שם:</strong> {selected.name}</p>
+                    <p><strong>טלפון:</strong> {selected.phone ?? "—"}</p>
+                    <p><strong>דוא״ל:</strong> {selected.email ?? "—"}</p>
+                    <p><strong>כתובת:</strong> {selected.address ?? "—"}</p>
+                  </div>
+                );
+              })()}
+            </div>
+          ) : null}
+          <div className="mt-4 flex justify-end gap-2">
+            <Button onClick={() => setLookupOpen(false)} type="button" variant="outline">
+              לא, המשך ידנית
+            </Button>
+            <Button
+              onClick={() => {
+                const selected =
+                  lookupCandidates.find((c) => c.id === selectedLookupId) ?? lookupCandidates[0];
+                if (selected) {
+                  applyCandidate(selected);
+                }
+              }}
+              type="button"
+            >
+              כן, זה הלקוח
+            </Button>
+          </div>
+        </ModalContent>
+      </Modal>
     </form>
   );
 }

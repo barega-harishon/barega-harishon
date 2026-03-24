@@ -93,6 +93,38 @@
   }
 }
 
+:root[data-theme="light"] {
+  --background: #faf7f3;
+  --foreground: #2c2c2c;
+  --card: #ffffff;
+  --card-foreground: #2c2c2c;
+  --muted: #ede8e1;
+  --muted-foreground: #5c534a;
+  --border: #e0d6ca;
+  --input: #ffffff;
+  --primary: #a67c52;
+  --primary-foreground: #fffbf7;
+  --ring: #d4a373;
+  --header: #2c2c2c;
+  --header-foreground: #f5f5f4;
+}
+
+:root[data-theme="dark"] {
+  --background: #171717;
+  --foreground: #fafaf9;
+  --card: #262626;
+  --card-foreground: #fafaf9;
+  --muted: #404040;
+  --muted-foreground: #a8a29e;
+  --border: #404040;
+  --input: #262626;
+  --primary: #c49a6c;
+  --primary-foreground: #fffbf7;
+  --ring: #d4a373;
+  --header: #1a1a1a;
+  --header-foreground: #f5f5f4;
+}
+
 * {
   border-color: var(--border);
 }
@@ -174,4 +206,14 @@ a:focus-visible {
 a:focus-visible:not([class*="ring-"]) {
   border-radius: 0.25rem;
   box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--ring);
+}
+
+/* מצב תנועה מופחתת שניתן להפעיל מהגדרות */
+.motion-reduced *,
+.motion-reduced *::before,
+.motion-reduced *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }

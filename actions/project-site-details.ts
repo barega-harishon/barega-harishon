@@ -142,7 +142,7 @@ export async function setProjectSitePhotoPathsRaw(
       .eq("project_id", idParsed.data)
       .maybeSingle();
 
-    await supabase.from("project_site_details").upsert(
+    const { error } = await supabase.from("project_site_details").upsert(
       {
         project_id: idParsed.data,
         access_notes: row?.access_notes ?? null,
@@ -155,6 +155,11 @@ export async function setProjectSitePhotoPathsRaw(
       },
       { onConflict: "project_id" },
     );
+
+    if (error) {
+      console.error("setProjectSitePhotoPathsRaw db error", error);
+      return { success: false, message: getSafeClientErrorMessage() };
+    }
 
     return {
       success: true,

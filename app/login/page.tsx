@@ -27,10 +27,10 @@ export default async function LoginPage({
     rawNext.startsWith("/") &&
     !rawNext.startsWith("//")
       ? rawNext
-      : "/projects";
+      : "/dashboard";
 
   return (
-    <main className="container-page flex flex-1 flex-col items-center justify-center gap-10 py-12 sm:gap-12 sm:py-16">
+    <main className="container-page flex flex-1 flex-col items-center justify-center gap-10 py-10 sm:gap-12 sm:py-14">
       <Link
         href="/"
         className="rounded-md transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -44,14 +44,14 @@ export default async function LoginPage({
           priority
         />
       </Link>
-      <Card className="w-full max-w-md border-border/50 bg-card/95 shadow-xl shadow-stone-900/10 ring-1 ring-stone-900/[0.06] backdrop-blur-sm dark:shadow-black/40 dark:ring-white/10">
+      <Card className="w-full max-w-md overflow-hidden border-border/50 bg-card/95 shadow-xl shadow-stone-900/10 ring-1 ring-stone-900/[0.06] backdrop-blur-sm dark:shadow-black/40 dark:ring-white/10">
         <CardHeader className="space-y-3 px-8 pb-2 pt-8 text-center sm:px-10 sm:pt-10">
           <CardTitle className="text-3xl font-bold tracking-tight sm:text-4xl">התחברות</CardTitle>
           <CardDescription className="text-base leading-relaxed">
             הזינו דוא״ל וסיסמה כדי לגשת לפרויקטים.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6 px-8 pb-8 sm:px-10 sm:pb-10">
+        <CardContent className="space-y-6 border-t border-border/70 px-8 pb-8 pt-6 sm:px-10 sm:pb-10">
           <LoginForm nextPath={nextPath} />
           <InstallPwaPanel />
           <p className="text-center text-sm text-muted-foreground">
@@ -61,6 +61,9 @@ export default async function LoginPage({
             >
               חזרה לדף הבית
             </Link>
+          </p>
+          <p className="text-center text-xs text-muted-foreground">
+            התחברות מאובטחת דרך Supabase Auth.
           </p>
         </CardContent>
       </Card>

@@ -134,7 +134,7 @@ export function NewEmployeeForm() {
       <section className="space-y-4">
         <h3 className="text-sm font-semibold text-foreground">מסמכים ורשיונות</h3>
         <p className="text-xs text-muted-foreground">
-          ניתן לתאר מסמכים קיימים, מספרי רשיון או הערות; העלאת קבצים — בהמשך דרך אחסון מאובטח.
+          ניתן להוסיף הערות וגם להעלות קבצים (PDF/תמונה/Word/TXT, עד 10MB לקובץ).
         </p>
         <div className="space-y-1.5">
           <label className="text-sm font-medium" htmlFor="emp-docs">
@@ -143,10 +143,34 @@ export function NewEmployeeForm() {
           <Textarea id="emp-docs" name="documentsNotes" rows={4} placeholder="למשל: חוזה, ביטוח, תעודות…" />
         </div>
         <div className="space-y-1.5">
+          <label className="text-sm font-medium" htmlFor="emp-doc-files">
+            קבצי מסמכים
+          </label>
+          <Input
+            id="emp-doc-files"
+            name="documentsFiles"
+            type="file"
+            multiple
+            accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.txt"
+          />
+        </div>
+        <div className="space-y-1.5">
           <label className="text-sm font-medium" htmlFor="emp-licenses">
             רשיונות
           </label>
           <Textarea id="emp-licenses" name="licensesNotes" rows={3} placeholder="למשל: רישיון נהיגה, הרשאות עבודה בגובה…" />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium" htmlFor="emp-license-files">
+            קבצי רשיונות
+          </label>
+          <Input
+            id="emp-license-files"
+            name="licensesFiles"
+            type="file"
+            multiple
+            accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.txt"
+          />
         </div>
       </section>
 

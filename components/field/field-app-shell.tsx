@@ -1,4 +1,5 @@
 import { FieldMobileTopBar } from "@/components/field/field-mobile-top-bar";
+import { SettingsGearLink } from "@/components/common/settings-gear-link";
 import { FieldSidebar } from "@/components/field/field-sidebar";
 
 export function FieldAppShell({ children }: { children: React.ReactNode }) {
@@ -12,7 +13,12 @@ export function FieldAppShell({ children }: { children: React.ReactNode }) {
       </aside>
       <FieldMobileTopBar />
       <main className="app-authenticated-main flex min-h-0 flex-1 flex-col lg:items-center lg:px-4 xl:px-8">
-        <div className="flex w-full max-w-[72rem] flex-1 flex-col">{children}</div>
+        <div className="flex w-full max-w-[72rem] flex-1 flex-col">
+          <div className="mb-2 hidden justify-end lg:flex">
+            <SettingsGearLink className="h-9 w-9" />
+          </div>
+          {children}
+        </div>
       </main>
     </div>
   );

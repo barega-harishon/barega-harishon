@@ -1,17 +1,19 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { Fragment, useActionState, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import {
   removeProjectEquipmentLine,
   upsertProjectEquipmentLineFromForm,
 } from "@/actions/project-equipment";
+import { BatchPickingForm } from "@/components/equipment/batch-picking-form";
 import type {
   EquipmentAvailability,
   EquipmentOption,
   ProjectEquipmentLine,
 } from "@/types/project-equipment";
+import type { EquipmentBatchAvailabilityRow } from "@/types/equipment-batches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -27,6 +29,7 @@ interface ProjectEquipmentSectionProps {
   lines: ProjectEquipmentLineView[];
   options: EquipmentOption[];
   availability: Record<string, EquipmentAvailability>;
+  batchAvailabilityByEquipment: Record<string, EquipmentBatchAvailabilityRow[]>;
 }
 
 export function ProjectEquipmentSection({
@@ -34,6 +37,7 @@ export function ProjectEquipmentSection({
   lines,
   options,
   availability,
+  batchAvailabilityByEquipment,
 }: ProjectEquipmentSectionProps) {
   const router = useRouter();
   const [removeError, setRemoveError] = useState<string | null>(null);
@@ -86,25 +90,42 @@ export function ProjectEquipmentSection({
               {lines.map((line) => {
                 const name = line.equipment?.name ?? "—";
                 const headroom = line.headroom;
+                const remainingNeed = Math.max(0, line.quantity - line.picked_qty);
+                const equipmentId = line.equipment_id;
+                const batches = batchAvailabilityByEquipment[equipmentId] ?? [];
 
                 return (
-                  <tr className="border-b border-border last:border-0" key={line.id}>
-                    <td className="px-3 py-2 font-medium">{name}</td>
-                    <td className="px-3 py-2">{line.quantity}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{headroom}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{line.picked_qty}</td>
-                    <td className="px-3 py-2">
-                      <Button
-                        disabled={pending}
-                        onClick={() => handleRemove(line.id)}
-                        size="sm"
-                        type="button"
-                        variant="destructive"
-                      >
-                        הסרה
-                      </Button>
-                    </td>
-                  </tr>
+                  <Fragment key={line.id}>
+                    <tr className="border-b border-border last:border-0">
+                      <td className="px-3 py-2 font-medium">{name}</td>
+                      <td className="px-3 py-2">{line.quantity}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{headroom}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{line.picked_qty}</td>
+                      <td className="px-3 py-2">
+                        <Button
+                          disabled={pending}
+                          onClick={() => handleRemove(line.id)}
+                          size="sm"
+                          type="button"
+                          variant="destructive"
+                        >
+                          הסרה
+                        </Button>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-border bg-muted/10 last:border-0">
+                      <td className="px-3 py-3" colSpan={5}>
+                        <BatchPickingForm
+                          batches={batches}
+                          equipmentId={equipmentId}
+                          maxTotalQty={remainingNeed}
+                          projectId={projectId}
+                          source="project"
+                          title={`ליקוט מהמחסן לפריט: ${name}`}
+                        />
+                      </td>
+                    </tr>
+                  </Fragment>
                 );
               })}
             </tbody>

@@ -4,7 +4,9 @@ import {
   listEquipmentCategoryOptions,
   listEquipmentRowsWithAvailability,
 } from "@/actions/equipment-catalog";
+import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { EquipmentCategoryFilter } from "@/components/equipment/equipment-category-filter";
+import { EquipmentImportForm } from "@/components/equipment/equipment-import-form";
 import { NewEquipmentForm } from "@/components/equipment/new-equipment-form";
 import { Button } from "@/components/ui/button";
 import { formatCurrencyIl } from "@/utils/money";
@@ -49,8 +51,20 @@ export default async function EquipmentPage({
             שאינם סגורים; <strong>פנוי</strong> – זמין לשיבוץ.
           </p>
         </div>
-        <Button asChild variant="outline">
+        <Button asChild className={selectorButtonClass(false)} variant="outline">
           <Link href="/projects">חזרה לפרויקטים</Link>
+        </Button>
+        <Button asChild className={selectorButtonClass(false)} variant="outline">
+          <Link href="/equipment/picking">ליקוט מחסן</Link>
+        </Button>
+        <Button asChild className={selectorButtonClass(false)} variant="outline">
+          <Link href="/api/equipment/export?kind=realtime">אקסל מלאי בזמן אמת</Link>
+        </Button>
+        <Button asChild className={selectorButtonClass(false)} variant="outline">
+          <Link href="/api/equipment/export?kind=company">אקסל ציוד חברה (מלא)</Link>
+        </Button>
+        <Button asChild className={selectorButtonClass(false)} variant="outline">
+          <Link href="/api/equipment/template">תבנית אקסל לייבוא</Link>
         </Button>
       </div>
 
@@ -60,8 +74,9 @@ export default async function EquipmentPage({
         hasUncategorized={hasUncategorized}
       />
 
-      <div className="mb-8 grid gap-6 lg:grid-cols-2">
+      <div className="mb-8 grid gap-6 lg:grid-cols-3">
         <NewEquipmentForm />
+        <EquipmentImportForm />
         <div className="rounded-[var(--radius)] border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
           <p className="font-medium text-foreground">הנחיות קצרות</p>
           <ul className="mt-2 list-inside list-disc space-y-1">
@@ -95,7 +110,7 @@ export default async function EquipmentPage({
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr className="border-b border-border last:border-0" key={row.id}>
+                <tr className="border-b border-border transition-colors hover:bg-muted/30 last:border-0" key={row.id}>
                   <td className="px-4 py-3 font-medium">{row.name}</td>
                   <td className="px-4 py-3 text-muted-foreground">{row.category || "—"}</td>
                   <td className="px-4 py-3 tabular-nums">{row.total_qty}</td>
@@ -106,7 +121,7 @@ export default async function EquipmentPage({
                     {row.warehouse_location ?? "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <Button asChild size="sm" variant="outline">
+                    <Button asChild className={selectorButtonClass(false)} size="sm" variant="outline">
                       <Link href={`/equipment/${row.id}`}>עריכה</Link>
                     </Button>
                   </td>

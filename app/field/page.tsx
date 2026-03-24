@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { listMyAssignedProjectsBrief } from "@/actions/projects";
 import { InstallPwaPanel } from "@/components/common/install-pwa-panel";
+import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -35,14 +36,28 @@ export default async function FieldHomePage() {
 
       <InstallPwaPanel />
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Button asChild className="h-auto min-h-14 flex-col py-3" size="lg" variant="default">
+      <div className="grid gap-3 rounded-[var(--radius)] border border-border/70 bg-card/60 p-2 sm:grid-cols-2">
+        <Button
+          asChild
+          className={`${selectorButtonClass(true)} h-auto min-h-14 flex-col py-3`}
+          size="lg"
+          variant="outline"
+        >
           <Link href="/field/time">דיווח שעות</Link>
         </Button>
-        <Button asChild className="h-auto min-h-14 flex-col py-3" size="lg" variant="outline">
+        <Button
+          asChild
+          className={`${selectorButtonClass(false)} h-auto min-h-14 flex-col py-3`}
+          size="lg"
+          variant="outline"
+        >
           <Link href="/field/calendar">היומן שלי</Link>
         </Button>
-        <Button asChild className="h-auto min-h-14 flex-col py-3 sm:col-span-2" variant="outline">
+        <Button
+          asChild
+          className={`${selectorButtonClass(false)} h-auto min-h-14 flex-col py-3 sm:col-span-2`}
+          variant="outline"
+        >
           <Link href="/field/projects">כל הפרויקטים המשובצים</Link>
         </Button>
       </div>

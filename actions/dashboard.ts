@@ -11,6 +11,7 @@ const UPCOMING_DAYS = 14;
 const PAYMENT_HISTORY_MONTHS = 12;
 
 const ALL_STATUSES: ProjectStatus[] = [
+  "incoming",
   "quote",
   "approved",
   "prep",
@@ -49,6 +50,7 @@ export type MonthlyPaymentRow = {
 
 function emptyStatusCounts(): Record<ProjectStatus, number> {
   return {
+    incoming: 0,
     quote: 0,
     approved: 0,
     prep: 0,

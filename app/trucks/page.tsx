@@ -3,6 +3,7 @@ import Link from "next/link";
 import { listEmployeeOptionsForAssignments } from "@/actions/assignments";
 import { mapTruckIdToActiveProject } from "@/actions/project-trucks";
 import { listTrucks } from "@/actions/trucks";
+import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { NewTruckForm } from "@/components/trucks/new-truck-form";
 import { Button } from "@/components/ui/button";
 import { getCurrentAppRole } from "@/lib/auth/current-profile";
@@ -30,7 +31,7 @@ export default async function TrucksPage() {
             ניהול ציוד הובלה. עריכה למנהל תפעול, מחסן ואדמין; משרד רואה בלבד.
           </p>
         </div>
-        <Button asChild variant="outline">
+        <Button asChild className={selectorButtonClass(false)} variant="outline">
           <Link href="/projects">חזרה לפרויקטים</Link>
         </Button>
       </div>
@@ -70,7 +71,7 @@ export default async function TrucksPage() {
                 const st = normalizeTruckStatusForForm(row.status);
                 const active = activeByTruck[row.id];
                 return (
-                  <tr className="border-b border-border last:border-0" key={row.id}>
+                  <tr className="border-b border-border transition-colors hover:bg-muted/30 last:border-0" key={row.id}>
                     <td className="px-4 py-3 font-medium">{row.license_plate}</td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {row.driver?.name ?? "—"}
@@ -86,7 +87,7 @@ export default async function TrucksPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <Button asChild size="sm" variant="outline">
+                      <Button asChild className={selectorButtonClass(false)} size="sm" variant="outline">
                         <Link href={`/trucks/${row.id}`}>
                           {canManage ? "עריכה" : "פרטים"}
                         </Link>

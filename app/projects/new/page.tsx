@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { listClientsForSelect } from "@/actions/clients";
 import { NewProjectForm } from "@/components/projects/new-project-form";
+import { PublicInquiryLinkPanel } from "@/components/projects/public-inquiry-link-panel";
 import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,8 @@ export default async function NewProjectPage() {
           אין לקוחות במערכת. השתמשו בטופס &quot;לקוח חדש&quot; למטה לפני שמירת הפרויקט.
         </div>
       ) : null}
+
+      <PublicInquiryLinkPanel />
 
       <NewProjectForm initialClients={clients} />
     </main>

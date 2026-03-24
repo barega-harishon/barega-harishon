@@ -3,7 +3,10 @@
 import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import { updateProjectStatusFromForm } from "@/actions/projects";
+import {
+  approveIncomingProjectRequestFromForm,
+  updateProjectStatusFromForm,
+} from "@/actions/projects";
 import { Button } from "@/components/ui/button";
 import type { ProjectStatus } from "@/types/projects";
 import { PROJECT_STATUS_KANBAN_ORDER, PROJECT_STATUS_LABELS } from "@/types/projects";
@@ -14,50 +17,82 @@ const selectClassName =
 interface ProjectStatusFormProps {
   projectId: string;
   currentStatus: ProjectStatus;
+  canApproveIncoming?: boolean;
 }
 
-export function ProjectStatusForm({ projectId, currentStatus }: ProjectStatusFormProps) {
+export function ProjectStatusForm({
+  projectId,
+  currentStatus,
+  canApproveIncoming = false,
+}: ProjectStatusFormProps) {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(
     updateProjectStatusFromForm,
     null,
   );
+  const [approveState, approveAction, isApprovePending] = useActionState(
+    approveIncomingProjectRequestFromForm,
+    null,
+  );
 
   useEffect(() => {
-    if (state?.success) {
+    if (state?.success || approveState?.success) {
       router.refresh();
     }
-  }, [state, router]);
+  }, [state, approveState, router]);
 
   return (
-    <form action={formAction} className="flex flex-wrap items-end gap-3">
-      <input name="projectId" type="hidden" value={projectId} />
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium text-foreground" htmlFor="status">
-          סטטוס פרויקט
-        </label>
-        <select
-          className={selectClassName}
-          defaultValue={currentStatus}
-          id="status"
-          name="status"
-        >
-          {PROJECT_STATUS_KANBAN_ORDER.map((s) => (
-            <option key={s} value={s}>
-              {PROJECT_STATUS_LABELS[s]}
-            </option>
-          ))}
-        </select>
-      </div>
-      <Button disabled={isPending} type="submit" variant="outline">
-        {isPending ? "מעדכנים…" : "עדכון סטטוס"}
-      </Button>
+    <div className="space-y-3">
+      <form action={formAction} className="flex flex-wrap items-end gap-3">
+        <input name="projectId" type="hidden" value={projectId} />
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground" htmlFor="status">
+            סטטוס פרויקט
+          </label>
+          <select
+            className={selectClassName}
+            defaultValue={currentStatus}
+            id="status"
+            name="status"
+          >
+            {PROJECT_STATUS_KANBAN_ORDER.map((s) => (
+              <option key={s} value={s}>
+                {PROJECT_STATUS_LABELS[s]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <Button disabled={isPending} type="submit" variant="outline">
+          {isPending ? "מעדכנים…" : "עדכון סטטוס"}
+        </Button>
+      </form>
+
+      {canApproveIncoming && currentStatus === "incoming" ? (
+        <form action={approveAction} className="flex flex-wrap items-center gap-3">
+          <input name="projectId" type="hidden" value={projectId} />
+          <Button disabled={isApprovePending} type="submit">
+            {isApprovePending ? "מאשרים…" : "אשר בקשה והעבר להצעה"}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            האישור מקדם את הבקשה ישירות לסטטוס &quot;הצעה&quot;.
+          </p>
+        </form>
+      ) : null}
+
       {state && !state.success ? (
         <p className="w-full text-sm text-destructive">{state.message}</p>
+      ) : null}
+      {approveState && !approveState.success ? (
+        <p className="w-full text-sm text-destructive">{approveState.message}</p>
       ) : null}
       {state?.success ? (
         <p className="w-full text-sm text-emerald-700 dark:text-emerald-400">{state.message}</p>
       ) : null}
-    </form>
+      {approveState?.success ? (
+        <p className="w-full text-sm text-emerald-700 dark:text-emerald-400">
+          {approveState.message}
+        </p>
+      ) : null}
+    </div>
   );
 }

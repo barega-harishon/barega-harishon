@@ -6,10 +6,12 @@ import {
   groupCalendarRowsByLocalDay,
   ProjectCalendarMonth,
 } from "@/components/projects/project-calendar-month";
+import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { Button } from "@/components/ui/button";
+import { getDateStylePreference } from "@/lib/date-style-server";
 import { PROJECT_STATUS_KANBAN_ORDER, PROJECT_STATUS_LABELS, type ProjectStatus } from "@/types/projects";
 import { calendarPath, parseCalendarStatusFilter } from "@/utils/calendar-query";
-import { formatHebrewMonthYear } from "@/utils/date";
+import { formatGregorianMonthYearHe, formatHebrewMonthYearWithLetters } from "@/utils/date";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +33,7 @@ export default async function ProjectCalendarPage({
   }
 
   const statusFilter = parseCalendarStatusFilter(sp.st);
+  const dateStyle = await getDateStylePreference();
 
   const rows = await listProjectsForCalendarMonth(year, month, { statusFilter });
   const byDay = groupCalendarRowsByLocalDay(rows);
@@ -59,29 +62,35 @@ export default async function ProjectCalendarPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
+          <Button asChild className={selectorButtonClass(false)} variant="outline">
             <Link href="/projects">רשימה</Link>
           </Button>
-          <Button asChild variant="outline">
+          <Button asChild className={selectorButtonClass(false)} variant="outline">
             <Link href="/projects/kanban">קנבן</Link>
+          </Button>
+          <Button asChild className={selectorButtonClass(true)} variant="outline">
+            <Link href="/projects/calendar">יומן</Link>
           </Button>
         </div>
       </div>
 
       <div className="page-header-row mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">{formatHebrewMonthYear(year, month)}</h2>
+        <div className="text-center">
+          <h2 className="text-lg font-semibold">{formatGregorianMonthYearHe(year, month)}</h2>
+          <p className="text-xs text-muted-foreground">{formatHebrewMonthYearWithLetters(year, month)}</p>
+        </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm" variant="outline">
+          <Button asChild size="sm" className={selectorButtonClass(false)} variant="outline">
             <Link href={calendarPath(basePrev.year, basePrev.month, { status: statusFilter })}>
               חודש קודם
             </Link>
           </Button>
-          <Button asChild size="sm" variant="outline">
+          <Button asChild size="sm" className={selectorButtonClass(false)} variant="outline">
             <Link href={calendarPath(baseNext.year, baseNext.month, { status: statusFilter })}>
               חודש הבא
             </Link>
           </Button>
-          <Button asChild size="sm" variant="outline">
+          <Button asChild size="sm" className={selectorButtonClass(false)} variant="outline">
             <Link href={calendarPath(baseToday.year, baseToday.month, { status: statusFilter })}>
               היום
             </Link>
@@ -89,14 +98,19 @@ export default async function ProjectCalendarPage({
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Button asChild size="sm" variant={!statusFilter?.length ? "default" : "outline"}>
+      <div className="mb-4 flex flex-wrap gap-2 rounded-[var(--radius)] border border-border/70 bg-card/60 p-2">
+        <Button
+          asChild
+          size="sm"
+          className={selectorButtonClass(!statusFilter?.length)}
+          variant="outline"
+        >
           <Link href={calendarPath(baseThis.year, baseThis.month)}>כל הסטטוסים</Link>
         </Button>
         {PROJECT_STATUS_KANBAN_ORDER.map((st: ProjectStatus) => {
           const active = statusFilter?.length === 1 && statusFilter[0] === st;
           return (
-            <Button asChild key={st} size="sm" variant={active ? "default" : "outline"}>
+            <Button asChild key={st} size="sm" className={selectorButtonClass(active)} variant="outline">
               <Link href={calendarPath(baseThis.year, baseThis.month, { status: [st] })}>
                 {PROJECT_STATUS_LABELS[st]}
               </Link>
@@ -105,7 +119,7 @@ export default async function ProjectCalendarPage({
         })}
       </div>
 
-      <ProjectCalendarMonth byDay={byDay} month={month} year={year} />
+      <ProjectCalendarMonth byDay={byDay} month={month} year={year} dateStyle={dateStyle} />
 
       <ProjectCalendarLegend />
 

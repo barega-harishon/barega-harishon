@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getPublicProjectByTrackingToken } from "@/lib/public-project-tracking";
+import { getDateStylePreference } from "@/lib/date-style-server";
 import { hasServiceRoleKey } from "@/lib/supabase/service-role";
 import { PROJECT_STATUS_LABELS } from "@/types/projects";
-import { formatDateTimeHe } from "@/utils/date";
+import { formatDateTimeByPreference } from "@/utils/date";
 import { formatCurrencyIl } from "@/utils/money";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,7 @@ export default async function PublicProjectTrackPage({
   }
 
   const { status } = data;
+  const dateStyle = await getDateStylePreference();
   const balance = Math.max(0, data.total_price - data.paid_sum);
 
   return (
@@ -61,19 +63,19 @@ export default async function PublicProjectTrackPage({
             </div>
             <div className="flex justify-between gap-4 border-b border-border pb-3">
               <dt className="text-muted-foreground">הקמה</dt>
-              <dd className="text-end">{formatDateTimeHe(data.setup_starts_at)}</dd>
+              <dd className="text-end">{formatDateTimeByPreference(data.setup_starts_at, dateStyle)}</dd>
             </div>
             <div className="flex justify-between gap-4 border-b border-border pb-3">
               <dt className="text-muted-foreground">תחילת אירוע</dt>
-              <dd className="text-end">{formatDateTimeHe(data.event_starts_at)}</dd>
+              <dd className="text-end">{formatDateTimeByPreference(data.event_starts_at, dateStyle)}</dd>
             </div>
             <div className="flex justify-between gap-4 border-b border-border pb-3">
               <dt className="text-muted-foreground">סיום אירוע</dt>
-              <dd className="text-end">{formatDateTimeHe(data.event_ends_at)}</dd>
+              <dd className="text-end">{formatDateTimeByPreference(data.event_ends_at, dateStyle)}</dd>
             </div>
             <div className="flex justify-between gap-4 border-b border-border pb-3">
               <dt className="text-muted-foreground">פירוק</dt>
-              <dd className="text-end">{formatDateTimeHe(data.teardown_at)}</dd>
+              <dd className="text-end">{formatDateTimeByPreference(data.teardown_at, dateStyle)}</dd>
             </div>
             <div className="flex justify-between gap-4 border-b border-border pb-3">
               <dt className="text-muted-foreground">סכום מוסכם</dt>

@@ -29,11 +29,33 @@ const createClientSchema = z.object({
     .max(500)
     .optional()
     .transform((v) => (v ? sanitizeText(v) : "")),
+  nationalId: z
+    .string()
+    .max(20)
+    .optional()
+    .transform((v) => (v ? sanitizeText(v) : "")),
 });
 
 export interface ClientOption {
   id: string;
   name: string;
+}
+
+export interface ClientLookupCandidate {
+  id: string;
+  name: string;
+  national_id: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+}
+
+function normalizeNationalId(raw: string | undefined): string {
+  return (raw ?? "").replace(/\D/g, "").slice(0, 20);
+}
+
+function normalizePhone(raw: string | undefined): string {
+  return (raw ?? "").replace(/[^\d+]/g, "").slice(0, 20);
 }
 
 function embeddedProjectCount(projects: unknown): number {
@@ -64,6 +86,7 @@ export async function listClientsWithProjectStats(filter?: {
       `
       id,
       name,
+      national_id,
       phone,
       email,
       projects ( count )
@@ -82,10 +105,11 @@ export async function listClientsWithProjectStats(filter?: {
     return [];
   }
 
-  return (data as { id: string; name: string; phone: string | null; email: string | null; projects: unknown }[]).map(
+  return (data as { id: string; name: string; national_id: string | null; phone: string | null; email: string | null; projects: unknown }[]).map(
     (row) => ({
       id: row.id,
       name: row.name,
+      national_id: row.national_id,
       phone: row.phone,
       email: row.email,
       project_count: embeddedProjectCount(row.projects),
@@ -102,7 +126,7 @@ export async function getClientById(id: string): Promise<ClientDetailRow | null>
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from("clients")
-    .select("id, name, phone, email, address, created_at")
+    .select("id, name, national_id, phone, email, address, created_at")
     .eq("id", parsed.data)
     .maybeSingle();
 
@@ -151,6 +175,7 @@ export async function createClientFromForm(
     phone: formData.get("phone"),
     email: formData.get("email"),
     address: formData.get("address"),
+    nationalId: formData.get("nationalId"),
   });
 }
 
@@ -171,7 +196,8 @@ export async function createClient(
       .from("clients")
       .insert({
         name: parsed.data.name,
-        phone: parsed.data.phone || null,
+        national_id: normalizeNationalId(parsed.data.nationalId),
+        phone: normalizePhone(parsed.data.phone) || null,
         email: parsed.data.email || null,
         address: parsed.data.address || null,
       })
@@ -212,9 +238,10 @@ export async function updateClient(payload: unknown): Promise<ActionResult<{ id:
       .from("clients")
       .update({
         name: parsed.data.name,
-        phone: parsed.data.phone || null,
+        phone: normalizePhone(parsed.data.phone) || null,
         email: parsed.data.email || null,
         address: parsed.data.address || null,
+        national_id: normalizeNationalId(parsed.data.nationalId),
       })
       .eq("id", parsed.data.id);
 
@@ -243,5 +270,52 @@ export async function updateClientFromForm(
     phone: formData.get("phone"),
     email: formData.get("email"),
     address: formData.get("address"),
+    nationalId: formData.get("nationalId"),
   });
+}
+
+export async function lookupExistingClient(
+  payload: unknown,
+): Promise<{ matches: ClientLookupCandidate[] }> {
+  const parsed = z
+    .object({
+      nationalId: z.string().optional(),
+      phone: z.string().optional(),
+      email: z.string().optional(),
+      source: z.enum(["public-inquiry", "new-project"]).optional(),
+    })
+    .safeParse(payload);
+  if (!parsed.success) {
+    return { matches: [] };
+  }
+  const nationalId = normalizeNationalId(parsed.data.nationalId);
+  const phone = normalizePhone(parsed.data.phone);
+  const email = sanitizeText(parsed.data.email?.trim().toLowerCase() ?? "");
+  if (!nationalId && !phone && !email) {
+    return { matches: [] };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  let q = supabase
+    .from("clients")
+    .select("id, name, national_id, phone, email, address")
+    .limit(5);
+  if (nationalId) {
+    q = q.eq("national_id", nationalId);
+  } else if (phone && email) {
+    q = q.or(`phone.eq.${phone},email.eq.${email}`);
+  } else if (phone) {
+    q = q.eq("phone", phone);
+  } else if (email) {
+    q = q.eq("email", email);
+  }
+
+  const { data } = await q;
+  const matches = ((data ?? []) as ClientLookupCandidate[]).filter((c) => !!c?.id);
+  console.info("lookupExistingClient", {
+    source: parsed.data.source ?? "unknown",
+    strategy: nationalId ? "national_id" : phone || email ? "phone_email" : "none",
+    matches: matches.length,
+  });
+  return { matches };
 }

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Heebo } from "next/font/google";
+import { getMotionPreference, getThemePreference } from "@/lib/ui-preferences-server";
 import "./globals.css";
 
 const heebo = Heebo({
@@ -34,18 +35,20 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const [motion, theme] = await Promise.all([getMotionPreference(), getThemePreference()]);
   return (
     <html
       lang="he"
       dir="rtl"
+      data-theme={theme}
       className={`${heebo.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-background text-foreground">
+      <body className={`flex min-h-full flex-col bg-background text-foreground ${motion === "reduced" ? "motion-reduced" : ""}`}>
         {children}
       </body>
     </html>

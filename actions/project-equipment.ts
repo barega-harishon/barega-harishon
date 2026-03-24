@@ -47,11 +47,15 @@ export async function getEquipmentAvailabilityMap(): Promise<
 > {
   const supabase = await createServerSupabaseClient();
 
-  const [{ data: equipment }, { data: lines }] = await Promise.all([
+  const [{ data: equipment }, { data: lines }, { data: warehousePicks }] = await Promise.all([
     supabase.from("equipment").select("id, total_qty"),
     supabase
       .from("project_equipment")
       .select("id, equipment_id, quantity, projects!inner(status)"),
+    supabase
+      .from("equipment_pick_transactions")
+      .select("equipment_id, quantity")
+      .eq("source", "warehouse"),
   ]);
 
   const allocated: Record<string, number> = {};
@@ -73,10 +77,17 @@ export async function getEquipmentAvailabilityMap(): Promise<
   }
 
   const map: Record<string, EquipmentAvailability> = {};
+  const warehousePickedByEquipment: Record<string, number> = {};
+  for (const row of warehousePicks ?? []) {
+    const id = row.equipment_id as string;
+    const qty = Number(row.quantity);
+    warehousePickedByEquipment[id] =
+      (warehousePickedByEquipment[id] ?? 0) + (Number.isNaN(qty) ? 0 : qty);
+  }
 
   for (const item of equipment ?? []) {
     const id = item.id as string;
-    const totalQty = Number(item.total_qty);
+    const totalQty = Math.max(0, Number(item.total_qty) - (warehousePickedByEquipment[id] ?? 0));
     const used = allocated[id] ?? 0;
     map[id] = {
       totalQty,

@@ -28,8 +28,8 @@ export default async function Home() {
   }
 
   return (
-    <main className="container-page flex flex-1 flex-col items-center justify-center py-12 sm:py-16 lg:px-6">
-      <section className="mx-auto w-full max-w-lg space-y-8 text-center">
+    <main className="container-page flex flex-1 flex-col items-center justify-center py-10 sm:py-14 lg:px-6">
+      <section className="mx-auto w-full max-w-xl space-y-8 text-center">
         <Link
           href="/login"
           className="inline-block rounded-md transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -44,8 +44,8 @@ export default async function Home() {
           />
         </Link>
 
-        <Card className="border-border/50 bg-card/95 shadow-xl shadow-stone-900/10 ring-1 ring-stone-900/[0.06] dark:shadow-black/40 dark:ring-white/10">
-          <CardHeader className="space-y-2 px-6 pt-8">
+        <Card className="overflow-hidden border-border/50 bg-card/95 shadow-xl shadow-stone-900/10 ring-1 ring-stone-900/[0.06] dark:shadow-black/40 dark:ring-white/10">
+          <CardHeader className="space-y-3 px-6 pb-4 pt-8">
             <CardTitle className="text-2xl font-bold tracking-tight sm:text-3xl">
               ברוכים הבאים
             </CardTitle>
@@ -53,13 +53,18 @@ export default async function Home() {
               ניהול השכרת ציוד לאירועים — התחברו לעבודה או שלחו פנייה ללא חשבון.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4 px-6 pb-2 text-sm text-muted-foreground">
+          <CardContent className="space-y-5 px-6 pb-2 text-sm text-muted-foreground">
+            <div className="flex flex-wrap justify-center gap-2 text-xs">
+              <span className="rounded-full border border-border bg-muted/50 px-3 py-1">דשבורד ניהולי</span>
+              <span className="rounded-full border border-border bg-muted/50 px-3 py-1">ניהול פרויקטים</span>
+              <span className="rounded-full border border-border bg-muted/50 px-3 py-1">צוות ומלאי</span>
+            </div>
             <p>
               לאחר התחברות תועברו לדשבורד: סטטוס פרויקטים, לוח זמנים, מלאי ועוד — לפי ההרשאות שלכם
               ב־Supabase.
             </p>
           </CardContent>
-          <CardFooter className="flex flex-col gap-3 px-6 pb-8 sm:flex-row sm:justify-center">
+          <CardFooter className="flex flex-col gap-3 border-t border-border/70 px-6 pb-8 pt-5 sm:flex-row sm:justify-center">
             <Button asChild className="w-full sm:w-auto" size="lg">
               <Link href="/login">התחברות למערכת</Link>
             </Button>

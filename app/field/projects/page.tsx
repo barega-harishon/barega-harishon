@@ -23,7 +23,7 @@ export default async function FieldProjectsPage() {
           projects.map((p) => (
             <li key={p.id}>
               <Link
-                className="block rounded-lg border border-border bg-card p-4 shadow-sm transition-colors hover:bg-muted/30"
+                className="block rounded-lg border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:shadow-stone-900/10"
                 href={`/field/projects/${p.id}`}
               >
                 <span className="font-medium">{p.clientName ?? "לקוח"}</span>

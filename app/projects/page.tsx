@@ -3,17 +3,22 @@ import { z } from "zod";
 
 import { getClientNameById } from "@/actions/clients";
 import { listProjects } from "@/actions/projects";
+import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { Button } from "@/components/ui/button";
+import { getCurrentAppRole } from "@/lib/auth/current-profile";
 import { Input } from "@/components/ui/input";
 import { ProjectStatusBadge } from "@/components/projects/project-status-badge";
+import { getDateStylePreference } from "@/lib/date-style-server";
+import { isOfficeOrAdminRole } from "@/types/app-role";
 import type { ProjectListRow, ProjectStatus } from "@/types/projects";
 import { PROJECT_STATUS_KANBAN_ORDER, PROJECT_STATUS_LABELS } from "@/types/projects";
-import { formatDateTimeHe } from "@/utils/date";
+import { formatDateTimeByPreference } from "@/utils/date";
 import { formatCurrencyIl } from "@/utils/money";
 import { projectsListQuery } from "@/utils/projects-list-query";
 
 function isProjectStatus(value: string): value is ProjectStatus {
   return (
+    value === "incoming" ||
     value === "quote" ||
     value === "approved" ||
     value === "prep" ||
@@ -60,14 +65,20 @@ export default async function ProjectsPage({
   const searchForList =
     searchInput && searchInput.replace(/[%_,]/g, "").trim().length >= 2 ? searchInput : undefined;
 
-  const [rows, clientLabel] = await Promise.all([
+  const [rows, clientLabel, dateStyle, role] = await Promise.all([
     listProjects({
       ...(statusFilter ? { status: statusFilter } : {}),
       ...(clientFilter ? { clientId: clientFilter } : {}),
       ...(searchForList ? { search: searchForList } : {}),
     }),
     clientFilter ? getClientNameById(clientFilter) : Promise.resolve(null),
+    getDateStylePreference(),
+    getCurrentAppRole(),
   ]);
+  const canSeeIncoming = isOfficeOrAdminRole(role);
+  const statusOptions = canSeeIncoming
+    ? PROJECT_STATUS_KANBAN_ORDER
+    : PROJECT_STATUS_KANBAN_ORDER.filter((s) => s !== "incoming");
 
   return (
     <main className="container-page py-8">
@@ -99,12 +110,22 @@ export default async function ProjectsPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
+          <Button asChild className={selectorButtonClass(true)} variant="outline">
+            <Link href="/projects">רשימה</Link>
+          </Button>
+          <Button asChild className={selectorButtonClass(false)} variant="outline">
             <Link href="/projects/kanban">תצוגת קנבן</Link>
           </Button>
-          <Button asChild variant="outline">
+          <Button asChild className={selectorButtonClass(false)} variant="outline">
             <Link href="/projects/calendar">יומן</Link>
           </Button>
+          {canSeeIncoming ? (
+            <Button asChild className={selectorButtonClass(statusFilter === "incoming")} variant="outline">
+              <Link href={projectsListQuery({ status: "incoming", clientId: clientFilter, q: searchInput })}>
+                בקשות נכנסות
+              </Link>
+            </Button>
+          ) : null}
           <Button asChild>
             <Link href="/projects/new">פרויקט חדש</Link>
           </Button>
@@ -140,12 +161,23 @@ export default async function ProjectsPage({
         ) : null}
       </form>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Button asChild size="sm" variant={!statusFilter ? "default" : "outline"}>
+      <div className="mb-4 flex flex-wrap gap-2 rounded-[var(--radius)] border border-border/70 bg-card/60 p-2">
+        <Button
+          asChild
+          size="sm"
+          className={selectorButtonClass(!statusFilter)}
+          variant="outline"
+        >
           <Link href={projectsListQuery({ clientId: clientFilter, q: searchInput })}>הכל</Link>
         </Button>
-        {PROJECT_STATUS_KANBAN_ORDER.map((s) => (
-          <Button asChild key={s} size="sm" variant={statusFilter === s ? "default" : "outline"}>
+        {statusOptions.map((s) => (
+          <Button
+            asChild
+            key={s}
+            size="sm"
+            className={selectorButtonClass(statusFilter === s)}
+            variant="outline"
+          >
             <Link href={projectsListQuery({ status: s, clientId: clientFilter, q: searchInput })}>
               {PROJECT_STATUS_LABELS[s]}
             </Link>
@@ -217,7 +249,7 @@ export default async function ProjectsPage({
             </thead>
             <tbody>
               {rows.map((row) => (
-                <ProjectTableRow key={row.id} row={row} />
+                <ProjectTableRow key={row.id} row={row} dateStyle={dateStyle} />
               ))}
             </tbody>
           </table>
@@ -227,7 +259,13 @@ export default async function ProjectsPage({
   );
 }
 
-function ProjectTableRow({ row }: { row: ProjectListRow }) {
+function ProjectTableRow({
+  row,
+  dateStyle,
+}: {
+  row: ProjectListRow;
+  dateStyle: "short" | "hebrew";
+}) {
   const status: ProjectStatus = isProjectStatus(row.status) ? row.status : "quote";
   const clientName = row.clients?.name ?? "—";
 
@@ -241,7 +279,7 @@ function ProjectTableRow({ row }: { row: ProjectListRow }) {
         {row.location_address ?? "—"}
       </td>
       <td className="px-4 py-3 text-muted-foreground">
-        {formatDateTimeHe(row.event_starts_at)}
+        {formatDateTimeByPreference(row.event_starts_at, dateStyle)}
       </td>
       <td className="px-4 py-3">{formatCurrencyIl(row.total_price)}</td>
       <td className="px-4 py-3">

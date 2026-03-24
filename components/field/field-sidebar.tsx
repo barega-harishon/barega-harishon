@@ -36,10 +36,13 @@ export function FieldSidebar() {
       </div>
       <nav aria-label="ניווט שטח" className="min-h-0 flex-1 overflow-y-auto p-2">
         <ul className="flex flex-col gap-0.5">
-          {FIELD_NAV_ITEMS.map(({ href, label }) => {
+          {FIELD_NAV_ITEMS.map(({ href, label, dividerBefore }) => {
             const active = isFieldNavHrefActive(pathname, href);
             return (
-              <li key={href}>
+              <li
+                key={href}
+                className={cn(dividerBefore ? "mt-2 border-t border-white/12 pt-2" : "")}
+              >
                 <Link
                   href={href}
                   className={cn(

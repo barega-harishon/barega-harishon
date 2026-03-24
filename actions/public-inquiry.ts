@@ -63,6 +63,11 @@ const inquirySchema = z
       .max(120)
       .optional()
       .transform((v) => (v ? sanitizeText(v.trim().toLowerCase()) : "")),
+    nationalId: z
+      .string()
+      .max(20)
+      .optional()
+      .transform((v) => (v ? sanitizeText(v.trim()) : "")),
     clientAddress: z
       .string()
       .max(500)
@@ -143,6 +148,52 @@ function getSketchFile(formData: FormData): File | null {
   return f instanceof File && f.size > 0 ? f : null;
 }
 
+function normalizeNationalId(raw: string | undefined): string {
+  return (raw ?? "").replace(/\D/g, "").slice(0, 20);
+}
+
+function normalizePhone(raw: string | undefined): string {
+  return (raw ?? "").replace(/[^\d+]/g, "").slice(0, 20);
+}
+
+async function checkCentralIpWindowRateLimit(
+  key: string,
+  windowMs: number,
+  max: number,
+): Promise<{ ok: true } | { ok: false; retryAfterSec: number }> {
+  const supabase = createServiceRoleSupabaseClient();
+  const now = Date.now();
+  const windowStartIso = new Date(now - windowMs).toISOString();
+
+  const { data: existing, error: readErr } = await supabase
+    .from("request_rate_limits")
+    .select("window_start, count")
+    .eq("key", key)
+    .maybeSingle();
+  if (readErr) {
+    return { ok: true };
+  }
+
+  const existingStartMs = existing?.window_start ? new Date(existing.window_start).getTime() : 0;
+  const expired = !existing || Number.isNaN(existingStartMs) || existingStartMs < now - windowMs;
+  const nextCount = expired ? 1 : Number(existing.count ?? 0) + 1;
+  const nextWindowStart = expired ? new Date(now).toISOString() : String(existing.window_start);
+
+  if (!expired && Number(existing?.count ?? 0) >= max) {
+    const retryAfterMs = windowMs - (now - existingStartMs);
+    return { ok: false, retryAfterSec: Math.max(1, Math.ceil(retryAfterMs / 1000)) };
+  }
+
+  await supabase.from("request_rate_limits").upsert({
+    key,
+    window_start: nextWindowStart,
+    count: nextCount,
+    updated_at: new Date(now).toISOString(),
+  });
+  await supabase.from("request_rate_limits").delete().lt("window_start", windowStartIso);
+  return { ok: true };
+}
+
 export async function submitPublicInquiryFromForm(
   _prev: ActionResult<{ projectId: string; trackingToken: string | null }> | null,
   formData: FormData,
@@ -155,10 +206,21 @@ export async function submitPublicInquiryFromForm(
   }
 
   const ipKey = await getRequestClientIpKey();
-  const rate = checkIpWindowRateLimit(`pniha:${ipKey}`, {
+  const localRate = checkIpWindowRateLimit(`pniha:${ipKey}`, {
     windowMs: PUBLIC_INQUIRY_WINDOW_MS,
     max: PUBLIC_INQUIRY_MAX_PER_WINDOW,
   });
+  if (!localRate.ok) {
+    return {
+      success: false,
+      message: `נשלחו יותר מדי פניות ממכשיר זה. ${formatRateLimitRetryHe(localRate.retryAfterSec)}`,
+    };
+  }
+  const rate = await checkCentralIpWindowRateLimit(
+    `pniha:${ipKey}`,
+    PUBLIC_INQUIRY_WINDOW_MS,
+    PUBLIC_INQUIRY_MAX_PER_WINDOW,
+  );
   if (!rate.ok) {
     return {
       success: false,
@@ -171,6 +233,7 @@ export async function submitPublicInquiryFromForm(
     clientName: formData.get("clientName"),
     clientPhone: formData.get("clientPhone"),
     clientEmail: formData.get("clientEmail"),
+    nationalId: formData.get("nationalId"),
     clientAddress: formData.get("clientAddress"),
     eventAddress: formData.get("eventAddress"),
     setupStartsAt: formData.get("setupStartsAt"),
@@ -230,29 +293,55 @@ export async function submitPublicInquiryFromForm(
   try {
     const supabase = createServiceRoleSupabaseClient();
 
-    const { data: clientRow, error: clientErr } = await supabase
-      .from("clients")
-      .insert({
-        name: d.clientName,
-        phone: d.clientPhone || null,
-        email: d.clientEmail || null,
-        address: d.clientAddress || null,
-      })
-      .select("id")
-      .single();
+    let createdClientId: string | null = null;
+    let createdProjectId: string | null = null;
 
-    if (clientErr || !clientRow) {
-      console.error("public inquiry client insert", clientErr);
-      return { success: false, message: getSafeClientErrorMessage() };
+    const normalizedPhone = normalizePhone(d.clientPhone);
+    const normalizedEmail = d.clientEmail.trim().toLowerCase();
+    const normalizedNationalId = normalizeNationalId(d.nationalId);
+    let existingClientId: string | null = null;
+    if (normalizedNationalId || normalizedPhone || normalizedEmail) {
+      let q = supabase.from("clients").select("id").limit(1);
+      if (normalizedNationalId) {
+        q = q.eq("national_id", normalizedNationalId);
+      } else if (normalizedPhone && normalizedEmail) {
+        q = q.or(`phone.eq.${normalizedPhone},email.eq.${normalizedEmail}`);
+      } else if (normalizedPhone) {
+        q = q.eq("phone", normalizedPhone);
+      } else if (normalizedEmail) {
+        q = q.eq("email", normalizedEmail);
+      }
+      const { data: existing } = await q.maybeSingle();
+      existingClientId = existing?.id ? String(existing.id) : null;
     }
 
-    const clientId = clientRow.id as string;
+    let clientId = existingClientId;
+    if (!clientId) {
+      const { data: clientRow, error: clientErr } = await supabase
+        .from("clients")
+        .insert({
+          name: d.clientName,
+          national_id: normalizedNationalId || null,
+          phone: normalizedPhone || null,
+          email: normalizedEmail || null,
+          address: d.clientAddress || null,
+        })
+        .select("id")
+        .single();
+
+      if (clientErr || !clientRow) {
+        console.error("public inquiry client insert", clientErr);
+        return { success: false, message: getSafeClientErrorMessage() };
+      }
+      clientId = clientRow.id as string;
+      createdClientId = clientId;
+    }
 
     const { data: projectRow, error: projectErr } = await supabase
       .from("projects")
       .insert({
         client_id: clientId,
-        status: "quote",
+        status: "incoming",
         location_address: d.eventAddress,
         total_price: 0,
         setup_starts_at: setupIso,
@@ -266,10 +355,14 @@ export async function submitPublicInquiryFromForm(
 
     if (projectErr || !projectRow) {
       console.error("public inquiry project insert", projectErr);
+      if (createdClientId) {
+        await supabase.from("clients").delete().eq("id", createdClientId);
+      }
       return { success: false, message: getSafeClientErrorMessage() };
     }
 
     const projectId = projectRow.id as string;
+    createdProjectId = projectId;
     const trackingToken =
       typeof projectRow.public_tracking_token === "string"
         ? projectRow.public_tracking_token
@@ -288,6 +381,12 @@ export async function submitPublicInquiryFromForm(
 
     if (siteErr) {
       console.error("public inquiry site details insert", siteErr);
+      if (createdProjectId) {
+        await supabase.from("projects").delete().eq("id", createdProjectId);
+      }
+      if (createdClientId) {
+        await supabase.from("clients").delete().eq("id", createdClientId);
+      }
       return { success: false, message: getSafeClientErrorMessage() };
     }
 
@@ -302,6 +401,12 @@ export async function submitPublicInquiryFromForm(
 
       if (upErr) {
         console.error("public inquiry photo upload", upErr);
+        if (createdProjectId) {
+          await supabase.from("projects").delete().eq("id", createdProjectId);
+        }
+        if (createdClientId) {
+          await supabase.from("clients").delete().eq("id", createdClientId);
+        }
         return {
           success: false,
           message: "נוצרה פנייה אך העלאת תמונות נכשלה. פנו למשרד עם פרטי האירוע.",
@@ -328,6 +433,12 @@ export async function submitPublicInquiryFromForm(
 
       if (skErr) {
         console.error("public inquiry sketch upload", skErr);
+        if (createdProjectId) {
+          await supabase.from("projects").delete().eq("id", createdProjectId);
+        }
+        if (createdClientId) {
+          await supabase.from("clients").delete().eq("id", createdClientId);
+        }
         return {
           success: false,
           message: "נוצרה פנייה אך העלאת הסקיצה נכשלה. ניתן לשלוח את הקובץ למשרד בנפרד.",
@@ -353,6 +464,12 @@ export async function submitPublicInquiryFromForm(
 
       if (updErr) {
         console.error("public inquiry site details update", updErr);
+        if (createdProjectId) {
+          await supabase.from("projects").delete().eq("id", createdProjectId);
+        }
+        if (createdClientId) {
+          await supabase.from("clients").delete().eq("id", createdClientId);
+        }
         return {
           success: false,
           message: "הקבצים הועלו אך עדכון פרטי האתר נכשל. פנו למשרד.",

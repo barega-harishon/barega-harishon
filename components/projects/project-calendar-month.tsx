@@ -4,16 +4,19 @@ import { ProjectStatusBadge } from "@/components/projects/project-status-badge";
 import type { CalendarProjectRow } from "@/types/calendar";
 import type { ProjectStatus } from "@/types/projects";
 import {
-  formatDateTimeHe,
+  formatDateTimeByPreference,
+  formatHebrewDayMonthShort,
   formatTimeShortHe,
   localDateKeyFromIso,
   localDateKeyFromParts,
 } from "@/utils/date";
+import type { DateStylePreference } from "@/lib/date-style";
 
 const DOW_LABELS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
 
 function isProjectStatus(value: string): value is ProjectStatus {
   return (
+    value === "incoming" ||
     value === "quote" ||
     value === "approved" ||
     value === "prep" ||
@@ -27,9 +30,10 @@ interface ProjectCalendarMonthProps {
   year: number;
   month: number;
   byDay: Record<string, CalendarProjectRow[]>;
+  dateStyle: DateStylePreference;
 }
 
-export function ProjectCalendarMonth({ year, month, byDay }: ProjectCalendarMonthProps) {
+export function ProjectCalendarMonth({ year, month, byDay, dateStyle }: ProjectCalendarMonthProps) {
   const daysInMonth = new Date(year, month, 0).getDate();
   const firstDow = new Date(year, month - 1, 1).getDay();
   const padCells = firstDow;
@@ -51,6 +55,8 @@ export function ProjectCalendarMonth({ year, month, byDay }: ProjectCalendarMont
           if (dayNum > daysInMonth) {
             return <div className="min-h-[4.5rem] rounded-md bg-muted/20 sm:min-h-[6rem]" key={`t-${i}`} />;
           }
+          const dayIso = new Date(year, month - 1, dayNum).toISOString();
+          const hebDay = formatHebrewDayMonthShort(dayIso);
           const dateKey = localDateKeyFromParts(year, month, dayNum);
           const items = byDay[dateKey] ?? [];
 
@@ -59,7 +65,10 @@ export function ProjectCalendarMonth({ year, month, byDay }: ProjectCalendarMont
               className="flex min-h-[4.5rem] flex-col gap-1 rounded-md border border-border bg-muted/10 p-1 sm:min-h-[6rem] sm:p-1.5"
               key={dateKey}
             >
-              <span className="text-end text-xs font-semibold text-foreground">{dayNum}</span>
+              <div className="flex flex-col items-end">
+                <span className="text-end text-xs font-semibold text-foreground">{dayNum}</span>
+                <span className="text-end text-[10px] text-muted-foreground">{hebDay}</span>
+              </div>
               <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
                 {items.map((proj) => {
                   const st: ProjectStatus = isProjectStatus(proj.status) ? proj.status : "quote";
@@ -76,7 +85,7 @@ export function ProjectCalendarMonth({ year, month, byDay }: ProjectCalendarMont
                       className="block rounded border border-border bg-card px-1 py-0.5 text-[10px] leading-tight shadow-sm hover:bg-muted/40 sm:text-xs"
                       href={`/projects/${proj.id}`}
                       key={proj.id}
-                      title={`${label} · ${formatDateTimeHe(proj.anchorIso)}${proj.location_address ? ` · ${proj.location_address}` : ""}`}
+                      title={`${label} · ${formatDateTimeByPreference(proj.anchorIso, dateStyle)}${proj.location_address ? ` · ${proj.location_address}` : ""}`}
                     >
                       <div className="flex items-start justify-between gap-0.5">
                         <span className="line-clamp-2 min-w-0 font-medium">{label}</span>

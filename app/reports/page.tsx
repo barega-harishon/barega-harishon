@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { getBusinessReportsBundle } from "@/actions/reports";
+import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { PaymentBars } from "@/components/dashboard/payment-bars";
 import { ProjectStatusBadge } from "@/components/projects/project-status-badge";
 import { Button } from "@/components/ui/button";
@@ -67,14 +68,14 @@ export default async function BusinessReportsPage({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button asChild size="sm" variant="outline">
+          <Button asChild size="sm" className={selectorButtonClass(false)} variant="outline">
             <Link href={reportPath(prevYear)}>שנה קודמת</Link>
           </Button>
           <span className="text-sm font-semibold tabular-nums">{data.year}</span>
-          <Button asChild size="sm" variant="outline">
+          <Button asChild size="sm" className={selectorButtonClass(false)} variant="outline">
             <Link href={reportPath(nextYear)}>שנה הבאה</Link>
           </Button>
-          <Button asChild size="sm" variant="outline">
+          <Button asChild size="sm" className={selectorButtonClass(false)} variant="outline">
             <Link href={reportPath(nowY)}>השנה הנוכחית</Link>
           </Button>
           <Button asChild size="sm" variant="default">

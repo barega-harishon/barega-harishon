@@ -6,6 +6,7 @@ import {
   getDashboardStatusCounts,
   getDashboardUpcomingProjects,
 } from "@/actions/dashboard";
+import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { PaymentBars } from "@/components/dashboard/payment-bars";
 import { ProjectStatusBadge } from "@/components/projects/project-status-badge";
 import { Button } from "@/components/ui/button";
@@ -17,13 +18,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getDateStylePreference } from "@/lib/date-style-server";
 import { isOfficeOrAdminRole } from "@/types/app-role";
-import { formatDateTimeHe } from "@/utils/date";
+import { formatDateTimeByPreference } from "@/utils/date";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const role = await getCurrentAppRole();
+  const [role, dateStyle] = await Promise.all([getCurrentAppRole(), getDateStylePreference()]);
   const showFinance = isOfficeOrAdminRole(role);
   const canManageTeam =
     role === "admin" || role === "office" || role === "operations";
@@ -44,12 +46,12 @@ export default async function DashboardPage() {
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
           {canManageTeam ? (
-            <Button asChild size="sm" variant="outline">
+            <Button asChild className={selectorButtonClass(false)} size="sm" variant="outline">
               <Link href="/employees">צוות</Link>
             </Button>
           ) : null}
           {showFinance ? (
-            <Button asChild size="sm" variant="outline">
+            <Button asChild className={selectorButtonClass(false)} size="sm" variant="outline">
               <Link href="/reports">דוחות עסקיים</Link>
             </Button>
           ) : null}
@@ -98,7 +100,9 @@ export default async function DashboardPage() {
                       </Link>
                       <ProjectStatusBadge status={p.status} />
                     </div>
-                    <span className="text-muted-foreground">{formatDateTimeHe(p.event_starts_at)}</span>
+                    <span className="text-muted-foreground">
+                      {formatDateTimeByPreference(p.event_starts_at, dateStyle)}
+                    </span>
                     {p.location_address ? (
                       <span className="text-muted-foreground">{p.location_address}</span>
                     ) : null}

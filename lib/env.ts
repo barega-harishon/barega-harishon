@@ -30,6 +30,11 @@ export function getServerEnv() {
   });
 }
 
+export function getCronSecret(): string | null {
+  const parsed = z.string().min(1).safeParse(process.env.CRON_SECRET);
+  return parsed.success ? parsed.data : null;
+}
+
 export function isVercelEnvironment(): boolean {
   return Boolean(process.env.VERCEL || process.env.VERCEL_ENV);
 }

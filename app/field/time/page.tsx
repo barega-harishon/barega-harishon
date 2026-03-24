@@ -87,7 +87,10 @@ export default async function FieldTimePage({
                     ? `${proj.clients.name} · ${proj.location_address}`
                     : proj?.clients?.name ?? proj?.location_address ?? r.project_id.slice(0, 8);
                 return (
-                  <li className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-2 last:border-0" key={r.id}>
+                  <li
+                    className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border border-transparent px-2 py-2 transition-colors hover:border-border hover:bg-muted/20"
+                    key={r.id}
+                  >
                     <div>
                       <p className="font-medium">{formatWorkDateHe(r.work_date)}</p>
                       <p className="text-xs text-muted-foreground">

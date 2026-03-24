@@ -31,3 +31,10 @@
 ## רשימת הערות שלכם (למלא אחרי סבב ביקורת)
 
 - 
+
+## בדיקות תפעול לפני שחרור
+
+- [ ] לוודא ש־`/brand/logo.png` זמין גם ב־Production.
+- [ ] לוודא שהמיגרציות החדשות עלו ל־Supabase (צוות + Storage policies).
+- [ ] לבדוק `/api/cron` עם `Authorization: Bearer <CRON_SECRET>`.
+- [ ] להריץ `npm run build` ו־`npm run lint` לפני דיפלוי.

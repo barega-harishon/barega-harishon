@@ -3,6 +3,7 @@ import { PROJECT_STATUS_LABELS } from "@/types/projects";
 import { cn } from "@/utils/cn";
 
 const STATUS_STYLES: Record<ProjectStatus, string> = {
+  incoming: "bg-orange-100 text-orange-900 dark:bg-orange-950 dark:text-orange-100",
   quote: "bg-muted text-muted-foreground",
   approved: "bg-primary/15 text-primary",
   prep: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",

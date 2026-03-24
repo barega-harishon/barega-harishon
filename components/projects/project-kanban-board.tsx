@@ -11,7 +11,8 @@ import {
   PROJECT_STATUS_KANBAN_ORDER,
   PROJECT_STATUS_LABELS,
 } from "@/types/projects";
-import { formatDateTimeHe } from "@/utils/date";
+import type { DateStylePreference } from "@/lib/date-style";
+import { formatDateTimeByPreference } from "@/utils/date";
 import { formatCurrencyIl } from "@/utils/money";
 
 const selectClassName =
@@ -36,16 +37,28 @@ function groupByStatus(rows: ProjectListRow[]): Record<ProjectStatus, ProjectLis
 interface ProjectKanbanBoardProps {
   projects: ProjectListRow[];
   canChangeStatus: boolean;
+  dateStyle: DateStylePreference;
+  allowIncomingStatus?: boolean;
 }
 
-export function ProjectKanbanBoard({ projects, canChangeStatus }: ProjectKanbanBoardProps) {
+export function ProjectKanbanBoard({
+  projects,
+  canChangeStatus,
+  dateStyle,
+  allowIncomingStatus = true,
+}: ProjectKanbanBoardProps) {
   const grouped = useMemo(() => groupByStatus(projects), [projects]);
+  const statusOptions = allowIncomingStatus
+    ? PROJECT_STATUS_KANBAN_ORDER
+    : PROJECT_STATUS_KANBAN_ORDER.filter((s) => s !== "incoming");
 
   return (
     <div className="flex gap-4 overflow-x-auto pb-4 [-webkit-overflow-scrolling:touch]">
-      {PROJECT_STATUS_KANBAN_ORDER.map((status) => (
+      {statusOptions.map((status) => (
         <KanbanColumn
+          allowIncomingStatus={allowIncomingStatus}
           canChangeStatus={canChangeStatus}
+          dateStyle={dateStyle}
           key={status}
           label={PROJECT_STATUS_LABELS[status]}
           rows={grouped[status]}
@@ -61,11 +74,15 @@ function KanbanColumn({
   label,
   rows,
   canChangeStatus,
+  dateStyle,
+  allowIncomingStatus,
 }: {
   status: ProjectStatus;
   label: string;
   rows: ProjectListRow[];
   canChangeStatus: boolean;
+  dateStyle: DateStylePreference;
+  allowIncomingStatus: boolean;
 }) {
   return (
     <section className="flex w-[min(100%,280px)] shrink-0 flex-col rounded-[var(--radius)] border border-border bg-muted/20">
@@ -86,9 +103,11 @@ function KanbanColumn({
             const rowStatus = isProjectStatus(row.status) ? row.status : "quote";
             return (
               <KanbanCard
+                allowIncomingStatus={allowIncomingStatus}
                 canChangeStatus={canChangeStatus}
                 key={`${row.id}-${rowStatus}`}
                 row={row}
+                dateStyle={dateStyle}
               />
             );
           })
@@ -101,9 +120,13 @@ function KanbanColumn({
 function KanbanCard({
   row,
   canChangeStatus,
+  dateStyle,
+  allowIncomingStatus,
 }: {
   row: ProjectListRow;
   canChangeStatus: boolean;
+  dateStyle: DateStylePreference;
+  allowIncomingStatus: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -138,7 +161,7 @@ function KanbanCard({
         {row.location_address ?? "ללא כתובת אירוע"}
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
-        אירוע: {formatDateTimeHe(row.event_starts_at)}
+        אירוע: {formatDateTimeByPreference(row.event_starts_at, dateStyle)}
       </p>
       <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
         {formatCurrencyIl(row.total_price)}
@@ -155,7 +178,10 @@ function KanbanCard({
             onChange={(e) => handleStatusChange(e.target.value as ProjectStatus)}
             value={selectStatus}
           >
-            {PROJECT_STATUS_KANBAN_ORDER.map((s) => (
+            {(allowIncomingStatus
+              ? PROJECT_STATUS_KANBAN_ORDER
+              : PROJECT_STATUS_KANBAN_ORDER.filter((s) => s !== "incoming")
+            ).map((s) => (
               <option key={s} value={s}>
                 {PROJECT_STATUS_LABELS[s]}
               </option>

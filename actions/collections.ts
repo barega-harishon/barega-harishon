@@ -16,6 +16,7 @@ export interface CollectionBalanceRow {
 
 function isProjectStatus(value: string): value is ProjectStatus {
   return (
+    value === "incoming" ||
     value === "quote" ||
     value === "approved" ||
     value === "prep" ||

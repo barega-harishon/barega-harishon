@@ -14,15 +14,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getDateStylePreference } from "@/lib/date-style-server";
 import { isOfficeOrAdminRole } from "@/types/app-role";
 import type { ProjectStatus } from "@/types/projects";
-import { formatDateTimeHe } from "@/utils/date";
+import { formatDateTimeByPreference } from "@/utils/date";
 import { formatCurrencyIl } from "@/utils/money";
 
 export const dynamic = "force-dynamic";
 
 function isProjectStatus(value: string): value is ProjectStatus {
   return (
+    value === "incoming" ||
     value === "quote" ||
     value === "approved" ||
     value === "prep" ||
@@ -38,7 +40,11 @@ export default async function ClientDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [client, role] = await Promise.all([getClientById(id), getCurrentAppRole()]);
+  const [client, role, dateStyle] = await Promise.all([
+    getClientById(id),
+    getCurrentAppRole(),
+    getDateStylePreference(),
+  ]);
 
   if (!client) {
     notFound();
@@ -53,7 +59,7 @@ export default async function ClientDetailPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{client.name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            לקוח במערכת · נוצר {formatDateTimeHe(client.created_at)}
+            לקוח במערכת · נוצר {formatDateTimeByPreference(client.created_at, dateStyle)}
           </p>
         </div>
         <Button asChild variant="outline">
@@ -127,7 +133,7 @@ export default async function ClientDetailPage({
                             {row.location_address ?? "—"}
                           </td>
                           <td className="px-3 py-2 text-muted-foreground">
-                            {formatDateTimeHe(row.event_starts_at)}
+                            {formatDateTimeByPreference(row.event_starts_at, dateStyle)}
                           </td>
                           <td className="px-3 py-2">{formatCurrencyIl(row.total_price)}</td>
                           <td className="px-3 py-2">

@@ -23,6 +23,8 @@ export interface EmployeeRow {
   bank_account_holder: string | null;
   documents_notes: string | null;
   licenses_notes: string | null;
+  documents_paths: string[] | null;
+  licenses_paths: string[] | null;
 }
 
 export interface EmployeeOption {

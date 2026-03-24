@@ -1,9 +1,16 @@
 import Link from "next/link";
 
-import { listEmployees } from "@/actions/employees";
+import { listEmployeesWithHealth } from "@/actions/employees";
+import { selectorButtonClass } from "@/components/common/selector-button-styles";
+import {
+  type EmployeeFileLink,
+  EmployeeFilesCell,
+} from "@/components/employees/employee-files-cell";
 import { NewEmployeeForm } from "@/components/employees/new-employee-form";
 import { Button } from "@/components/ui/button";
 import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { EMPLOYEE_FILES_BUCKET } from "@/lib/storage/buckets";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { EmployeeType } from "@/types/employees";
 import { EMPLOYEE_TYPE_LABELS } from "@/types/employees";
 import { formatCurrencyIl } from "@/utils/money";
@@ -14,10 +21,61 @@ function isEmployeeType(v: string): v is EmployeeType {
   return v === "fixed" || v === "hourly" || v === "agency";
 }
 
+function displayFileNameFromPath(path: string): string {
+  const fileWithStamp = path.split("/").pop() ?? path;
+  const firstUnderscore = fileWithStamp.indexOf("_");
+  if (firstUnderscore <= 0) {
+    return fileWithStamp;
+  }
+  return fileWithStamp.slice(firstUnderscore + 1);
+}
+
 export default async function EmployeesPage() {
-  const [rows, role] = await Promise.all([listEmployees(), getCurrentAppRole()]);
+  const [{ rows, loadError }, role] = await Promise.all([
+    listEmployeesWithHealth(),
+    getCurrentAppRole(),
+  ]);
   const canManage =
     role === "admin" || role === "office" || role === "operations";
+  const canSeeFiles = canManage;
+
+  let fileLinksByEmployee = new Map<string, { documents: EmployeeFileLink[]; licenses: EmployeeFileLink[] }>();
+  if (canSeeFiles && rows.length > 0) {
+    const supabase = await createServerSupabaseClient();
+    const entries = await Promise.all(
+      rows.map(async (row) => {
+        const toLinks = async (paths: string[] | null | undefined): Promise<EmployeeFileLink[]> => {
+          if (!Array.isArray(paths) || paths.length === 0) {
+            return [];
+          }
+
+          const visible = paths.slice(0, 12);
+          const links = await Promise.all(
+            visible.map(async (path) => {
+              const { data } = await supabase.storage
+                .from(EMPLOYEE_FILES_BUCKET)
+                .createSignedUrl(path, 60 * 60);
+              if (!data?.signedUrl) {
+                return null;
+              }
+              return {
+                path,
+                name: displayFileNameFromPath(path),
+                url: data.signedUrl,
+              } satisfies EmployeeFileLink;
+            }),
+          );
+
+          return links.filter((v): v is EmployeeFileLink => v !== null);
+        };
+
+        const documents = await toLinks(row.documents_paths);
+        const licenses = await toLinks(row.licenses_paths);
+        return [row.id, { documents, licenses }] as const;
+      }),
+    );
+    fileLinksByEmployee = new Map(entries);
+  }
 
   return (
     <main className="container-page py-8">
@@ -29,7 +87,7 @@ export default async function EmployeesPage() {
             לפרויקטים, פרטי קשר, בנק ומסמכים. הוספה: משרד / תפעול / אדמין.
           </p>
         </div>
-        <Button asChild variant="outline">
+        <Button asChild className={selectorButtonClass(false)} variant="outline">
           <Link href="/projects">חזרה לפרויקטים</Link>
         </Button>
       </div>
@@ -50,6 +108,12 @@ export default async function EmployeesPage() {
         </div>
       </div>
 
+      {loadError ? (
+        <div className="mb-4 rounded-[var(--radius)] border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+          {loadError}
+        </div>
+      ) : null}
+
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">אין עדיין עובדים במערכת.</p>
       ) : (
@@ -62,14 +126,19 @@ export default async function EmployeesPage() {
                 <th className="px-4 py-3 font-medium">טלפון</th>
                 <th className="px-4 py-3 font-medium">תעריף שעתי</th>
                 <th className="px-4 py-3 font-medium">הערת זמינות</th>
+                <th className="px-4 py-3 font-medium">קבצים</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => {
                 const t = isEmployeeType(row.type) ? row.type : "hourly";
                 return (
-                  <tr className="border-b border-border last:border-0" key={row.id}>
-                    <td className="px-4 py-3 font-medium">{row.name}</td>
+                  <tr className="border-b border-border transition-colors hover:bg-muted/30 last:border-0" key={row.id}>
+                    <td className="px-4 py-3 font-medium">
+                      <Link className="hover:underline" href={`/employees/${row.id}`}>
+                        {row.name}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{EMPLOYEE_TYPE_LABELS[t]}</td>
                     <td className="max-w-[10rem] truncate px-4 py-3 text-muted-foreground">
                       {row.phone ?? "—"}
@@ -79,6 +148,17 @@ export default async function EmployeesPage() {
                     </td>
                     <td className="max-w-[14rem] truncate px-4 py-3 text-muted-foreground">
                       {row.availability_note ?? "—"}
+                    </td>
+                    <td className="min-w-[16rem] px-4 py-3 align-top">
+                      {canSeeFiles ? (
+                        <EmployeeFilesCell
+                          employeeId={row.id}
+                          documents={fileLinksByEmployee.get(row.id)?.documents ?? []}
+                          licenses={fileLinksByEmployee.get(row.id)?.licenses ?? []}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </td>
                   </tr>
                 );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
@@ -119,9 +120,9 @@ export function ProjectAssignmentsSection({
           {employeeOptions.length === 0 ? (
             <p className="text-sm text-amber-800 dark:text-amber-200">
               אין רשומות בצוות.{" "}
-              <a className="font-medium underline" href="/employees">
+              <Link className="font-medium underline" href="/employees">
                 הוסיפו באנשי צוות
-              </a>{" "}
+              </Link>{" "}
               ואז חזרו לשבץ כאן.
             </p>
           ) : (

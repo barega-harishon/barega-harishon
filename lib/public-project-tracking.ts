@@ -30,6 +30,7 @@ function toNumber(v: unknown): number {
 }
 
 const STATUS_SET = new Set<ProjectStatus>([
+  "incoming",
   "quote",
   "approved",
   "prep",
@@ -66,6 +67,12 @@ export async function getPublicProjectByTrackingToken(
     .maybeSingle();
 
   if (projectErr || !project) {
+    if (projectErr?.code === "42703" || String(projectErr?.message ?? "").includes("public_tracking_token")) {
+      console.error(
+        "getPublicProjectByTrackingToken missing migration: public_tracking_token not found",
+        projectErr,
+      );
+    }
     return null;
   }
 

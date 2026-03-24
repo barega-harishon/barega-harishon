@@ -10,6 +10,7 @@ import {
   listEquipmentOptions,
   listProjectEquipmentLines,
 } from "@/actions/project-equipment";
+import { listEquipmentBatchAvailabilityForEquipmentIds } from "@/actions/equipment-batches";
 import { listProjectTruckLines, listTruckOptionsForProject } from "@/actions/project-trucks";
 import { listPaymentsForProject } from "@/actions/payments";
 import { getProjectById } from "@/actions/projects";
@@ -30,6 +31,7 @@ import { ProjectTotalPriceForm } from "@/components/projects/project-total-price
 import { Button } from "@/components/ui/button";
 import { getCurrentUserEmployeeId } from "@/lib/auth/current-employee";
 import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getDateStylePreference } from "@/lib/date-style-server";
 import { getPreferredSiteOrigin } from "@/lib/site-origin";
 import { isFieldRole, isOfficeOrAdminRole } from "@/types/app-role";
 import {
@@ -42,13 +44,14 @@ import {
 import type { ProjectStatus } from "@/types/projects";
 import { SITE_PHOTOS_BUCKET, SKETCHES_BUCKET } from "@/lib/storage/buckets";
 import { createSignedUrls } from "@/lib/storage/signed-urls";
-import { formatDateTimeHe } from "@/utils/date";
+import { formatDateTimeByPreference } from "@/utils/date";
 import { formatCurrencyIl } from "@/utils/money";
 
 export const dynamic = "force-dynamic";
 
 function isProjectStatus(value: string): value is ProjectStatus {
   return (
+    value === "incoming" ||
     value === "quote" ||
     value === "approved" ||
     value === "prep" ||
@@ -92,8 +95,9 @@ export default async function ProjectDetailPage({
   const trackingUrl =
     trackingToken && siteOrigin ? `${siteOrigin}/track/${trackingToken}` : null;
 
-  const role = await getCurrentAppRole();
+  const [role, dateStyle] = await Promise.all([getCurrentAppRole(), getDateStylePreference()]);
   const showPayments = isOfficeOrAdminRole(role);
+  const canApproveIncoming = isOfficeOrAdminRole(role);
   const canEditPricing =
     role === "admin" || role === "office" || role === "operations";
   const canAddAssignments = canEditPricing;
@@ -122,6 +126,9 @@ export default async function ProjectDetailPage({
     listTimeEntriesForProject(project.id),
     getCurrentUserEmployeeId(),
   ]);
+  const batchAvailabilityByEquipment = await listEquipmentBatchAvailabilityForEquipmentIds(
+    equipmentLines.map((line) => line.equipment_id),
+  );
 
   const imAssignedToProject = myEmployeeId
     ? assignments.some((a) => a.employee_id === myEmployeeId)
@@ -179,19 +186,19 @@ export default async function ProjectDetailPage({
             </div>
             <div className="flex justify-between gap-4 border-b border-border pb-2">
               <span className="text-muted-foreground">הקמה</span>
-              <span className="text-end">{formatDateTimeHe(project.setup_starts_at)}</span>
+              <span className="text-end">{formatDateTimeByPreference(project.setup_starts_at, dateStyle)}</span>
             </div>
             <div className="flex justify-between gap-4 border-b border-border pb-2">
               <span className="text-muted-foreground">תחילת אירוע</span>
-              <span className="text-end">{formatDateTimeHe(project.event_starts_at)}</span>
+              <span className="text-end">{formatDateTimeByPreference(project.event_starts_at, dateStyle)}</span>
             </div>
             <div className="flex justify-between gap-4 border-b border-border pb-2">
               <span className="text-muted-foreground">סיום אירוע</span>
-              <span className="text-end">{formatDateTimeHe(project.event_ends_at)}</span>
+              <span className="text-end">{formatDateTimeByPreference(project.event_ends_at, dateStyle)}</span>
             </div>
             <div className="flex justify-between gap-4">
               <span className="text-muted-foreground">פירוק</span>
-              <span className="text-end">{formatDateTimeHe(project.teardown_at)}</span>
+              <span className="text-end">{formatDateTimeByPreference(project.teardown_at, dateStyle)}</span>
             </div>
             <ProjectQuoteActions
               projectId={project.id}
@@ -216,7 +223,11 @@ export default async function ProjectDetailPage({
             {isFieldRole(role) ? (
               <FieldProjectStatusForm currentStatus={status} projectId={project.id} />
             ) : (
-              <ProjectStatusForm currentStatus={status} projectId={project.id} />
+              <ProjectStatusForm
+                canApproveIncoming={canApproveIncoming}
+                currentStatus={status}
+                projectId={project.id}
+              />
             )}
           </CardContent>
         </Card>
@@ -337,6 +348,7 @@ export default async function ProjectDetailPage({
           <CardContent>
             <ProjectEquipmentSection
               availability={equipmentAvailability}
+              batchAvailabilityByEquipment={batchAvailabilityByEquipment}
               lines={equipmentLinesView}
               options={equipmentOptions}
               projectId={project.id}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { listClientsWithProjectStats } from "@/actions/clients";
+import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getCurrentAppRole } from "@/lib/auth/current-profile";
@@ -43,11 +44,11 @@ export default async function ClientsPage({
         </div>
         <div className="flex flex-wrap gap-2">
           {canCreate ? (
-            <Button asChild>
+            <Button asChild className={selectorButtonClass(true)} variant="outline">
               <Link href="/clients/new">לקוח חדש</Link>
             </Button>
           ) : null}
-          <Button asChild variant="outline">
+          <Button asChild className={selectorButtonClass(false)} variant="outline">
             <Link href="/projects">כל הפרויקטים</Link>
           </Button>
         </div>
@@ -72,7 +73,7 @@ export default async function ClientsPage({
         </div>
         <Button type="submit">חיפוש</Button>
         {searchInput ? (
-          <Button asChild variant="outline">
+          <Button asChild className={selectorButtonClass(false)} variant="outline">
             <Link href="/clients">נקה</Link>
           </Button>
         ) : null}
@@ -115,7 +116,7 @@ export default async function ClientsPage({
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr className="border-b border-border last:border-0" key={row.id}>
+                <tr className="border-b border-border transition-colors hover:bg-muted/30 last:border-0" key={row.id}>
                   <td className="px-4 py-3 font-medium">
                     <Link className="hover:underline" href={`/clients/${row.id}`}>
                       {row.name}
@@ -125,7 +126,7 @@ export default async function ClientsPage({
                   <td className="px-4 py-3 text-muted-foreground">{row.email?.trim() || "—"}</td>
                   <td className="px-4 py-3">{row.project_count}</td>
                   <td className="px-4 py-3">
-                    <Button asChild size="sm" variant="outline">
+                    <Button asChild className={selectorButtonClass(false)} size="sm" variant="outline">
                       <Link href={`/projects?client=${row.id}`}>פרויקטים</Link>
                     </Button>
                   </td>

@@ -1,16 +1,24 @@
 import Link from "next/link";
 
 import { listProjects } from "@/actions/projects";
+import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { ProjectKanbanBoard } from "@/components/projects/project-kanban-board";
 import { Button } from "@/components/ui/button";
 import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getDateStylePreference } from "@/lib/date-style-server";
+import { isOfficeOrAdminRole } from "@/types/app-role";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjectsKanbanPage() {
-  const [rows, role] = await Promise.all([listProjects(), getCurrentAppRole()]);
+  const [rows, role, dateStyle] = await Promise.all([
+    listProjects(),
+    getCurrentAppRole(),
+    getDateStylePreference(),
+  ]);
   const canChangeStatus =
     role === "admin" || role === "office" || role === "operations";
+  const allowIncomingStatus = isOfficeOrAdminRole(role);
 
   return (
     <main className="container-page py-8">
@@ -22,8 +30,14 @@ export default async function ProjectsKanbanPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
+          <Button asChild className={selectorButtonClass(false)} variant="outline">
             <Link href="/projects">תצוגת רשימה</Link>
+          </Button>
+          <Button asChild className={selectorButtonClass(true)} variant="outline">
+            <Link href="/projects/kanban">קנבן</Link>
+          </Button>
+          <Button asChild className={selectorButtonClass(false)} variant="outline">
+            <Link href="/projects/calendar">יומן</Link>
           </Button>
           <Button asChild>
             <Link href="/projects/new">פרויקט חדש</Link>
@@ -40,7 +54,12 @@ export default async function ProjectsKanbanPage() {
           .
         </div>
       ) : (
-        <ProjectKanbanBoard canChangeStatus={canChangeStatus} projects={rows} />
+        <ProjectKanbanBoard
+          allowIncomingStatus={allowIncomingStatus}
+          canChangeStatus={canChangeStatus}
+          dateStyle={dateStyle}
+          projects={rows}
+        />
       )}
     </main>
   );

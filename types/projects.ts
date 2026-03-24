@@ -2,6 +2,7 @@ import type { ProjectSiteDetails } from "@/types/project-site";
 
 /** Matches public.project_status in Postgres */
 export type ProjectStatus =
+  | "incoming"
   | "quote"
   | "approved"
   | "prep"
@@ -10,6 +11,7 @@ export type ProjectStatus =
   | "closed";
 
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
+  incoming: "בקשה נכנסת",
   quote: "הצעה",
   approved: "מאושר",
   prep: "בהכנה",
@@ -20,6 +22,7 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
 
 /** סדר עמודות בקנבן וברשימת סטטוסים בטפסים */
 export const PROJECT_STATUS_KANBAN_ORDER: ProjectStatus[] = [
+  "incoming",
   "quote",
   "approved",
   "prep",

@@ -3,13 +3,16 @@
 import { z } from "zod";
 
 import { getSafeClientErrorMessage, toServerError } from "@/lib/errors";
+import { getCurrentAppRole } from "@/lib/auth/current-profile";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { isOfficeOrAdminRole } from "@/types/app-role";
 import type { ActionResult } from "@/types/common";
 import type { CalendarProjectRow } from "@/types/calendar";
 import type { ProjectDetailRow, ProjectListRow, ProjectStatus } from "@/types/projects";
 import { sanitizeText } from "@/utils/sanitize";
 
 const projectStatusSchema = z.enum([
+  "incoming",
   "quote",
   "approved",
   "prep",
@@ -70,11 +73,14 @@ function normalizeProjectSearchTerm(raw: string | undefined): string {
 
 function baseProjectsListQuery(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  filter?: { status?: ProjectStatus; clientId?: string },
+  filter?: { status?: ProjectStatus; clientId?: string; includeIncoming?: boolean },
 ) {
   let q = supabase.from("projects").select(PROJECT_LIST_SELECT);
   if (filter?.status) {
     q = q.eq("status", filter.status);
+  }
+  if (filter?.includeIncoming === false) {
+    q = q.neq("status", "incoming");
   }
   if (filter?.clientId) {
     q = q.eq("client_id", filter.clientId);
@@ -86,13 +92,21 @@ export async function listProjects(
   filter?: { status?: ProjectStatus; clientId?: string; search?: string },
 ): Promise<ProjectListRow[]> {
   const supabase = await createServerSupabaseClient();
+  const role = await getCurrentAppRole();
+  const canSeeIncoming = isOfficeOrAdminRole(role);
+  if (filter?.status === "incoming" && !canSeeIncoming) {
+    return [];
+  }
   const term = normalizeProjectSearchTerm(filter?.search);
 
   if (term.length >= 2) {
     const pattern = `%${term}%`;
 
     if (filter?.clientId) {
-      const { data, error } = await baseProjectsListQuery(supabase, filter)
+      const { data, error } = await baseProjectsListQuery(supabase, {
+        ...filter,
+        includeIncoming: canSeeIncoming,
+      })
         .ilike("location_address", pattern)
         .order("created_at", { ascending: false });
 
@@ -110,14 +124,14 @@ export async function listProjects(
     const idList = (clientMatches ?? []).map((r) => r.id as string);
 
     const promises = [
-      baseProjectsListQuery(supabase, filter)
+      baseProjectsListQuery(supabase, { ...filter, includeIncoming: canSeeIncoming })
         .ilike("location_address", pattern)
         .order("created_at", { ascending: false }),
     ];
 
     if (idList.length > 0) {
       promises.push(
-        baseProjectsListQuery(supabase, filter)
+        baseProjectsListQuery(supabase, { ...filter, includeIncoming: canSeeIncoming })
           .in("client_id", idList)
           .order("created_at", { ascending: false }),
       );
@@ -139,7 +153,10 @@ export async function listProjects(
     );
   }
 
-  const { data, error } = await baseProjectsListQuery(supabase, filter).order("created_at", {
+  const { data, error } = await baseProjectsListQuery(supabase, {
+    ...filter,
+    includeIncoming: canSeeIncoming,
+  }).order("created_at", {
     ascending: false,
   });
 
@@ -201,7 +218,14 @@ export async function getProjectById(id: string): Promise<ProjectDetailRow | nul
       null;
   }
 
-  return row as ProjectDetailRow;
+  const role = await getCurrentAppRole();
+  const canSeeIncoming = isOfficeOrAdminRole(role);
+  const typed = row as ProjectDetailRow;
+  if (typed.status === "incoming" && !canSeeIncoming) {
+    return null;
+  }
+
+  return typed;
 }
 
 export async function createProject(
@@ -334,6 +358,10 @@ export async function updateProjectStatus(
   }
 
   try {
+    const role = await getCurrentAppRole();
+    if (parsed.data.status === "incoming" && !isOfficeOrAdminRole(role)) {
+      return { success: false, message: "אין הרשאה להעביר לסטטוס בקשה נכנסת." };
+    }
     const supabase = await createServerSupabaseClient();
     const { error } = await supabase
       .from("projects")
@@ -353,6 +381,56 @@ export async function updateProjectStatus(
     console.error("updateProjectStatus failed", toServerError(error));
     return { success: false, message: getSafeClientErrorMessage() };
   }
+}
+
+export async function approveIncomingProjectRequest(
+  payload: unknown,
+): Promise<ActionResult<{ status: ProjectStatus }>> {
+  const parsed = z.object({ projectId: z.string().uuid() }).safeParse(payload);
+  if (!parsed.success) {
+    return { success: false, message: "בקשה לא תקינה." };
+  }
+
+  try {
+    const role = await getCurrentAppRole();
+    if (!isOfficeOrAdminRole(role)) {
+      return { success: false, message: "אין הרשאה לאשר בקשות נכנסות." };
+    }
+
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase
+      .from("projects")
+      .update({ status: "quote" })
+      .eq("id", parsed.data.projectId)
+      .eq("status", "incoming")
+      .select("status")
+      .maybeSingle();
+
+    if (error) {
+      return { success: false, message: getSafeClientErrorMessage() };
+    }
+    if (!data) {
+      return { success: false, message: "הבקשה כבר טופלה או שאינה במצב בקשה נכנסת." };
+    }
+
+    return {
+      success: true,
+      message: "הבקשה אושרה והועברה להצעה.",
+      data: { status: "quote" },
+    };
+  } catch (error) {
+    console.error("approveIncomingProjectRequest failed", toServerError(error));
+    return { success: false, message: getSafeClientErrorMessage() };
+  }
+}
+
+export async function approveIncomingProjectRequestFromForm(
+  _prev: ActionResult<{ status: ProjectStatus }> | null,
+  formData: FormData,
+): Promise<ActionResult<{ status: ProjectStatus }> | null> {
+  return approveIncomingProjectRequest({
+    projectId: formData.get("projectId"),
+  });
 }
 
 function parseProjectStatusForCalendar(s: string): ProjectStatus {
@@ -402,6 +480,8 @@ export async function listProjectsForCalendarMonth(
   const endIso = end.toISOString();
 
   const supabase = await createServerSupabaseClient();
+  const role = await getCurrentAppRole();
+  const canSeeIncoming = isOfficeOrAdminRole(role);
 
   const select = `
     id,
@@ -440,11 +520,12 @@ export async function listProjectsForCalendarMonth(
     .lt("teardown_at", endIso)
     .order("teardown_at", { ascending: true });
 
-  const applyOpts = <
-    T extends { in: (col: string, vals: string[]) => T },
-  >(
-    q: T,
-  ): T => {
+  type CalendarQueryLike<T> = {
+    in: (column: string, values: string[]) => T;
+    neq: (column: string, value: string) => T;
+  };
+
+  const applyOpts = <T extends CalendarQueryLike<T>>(q: T): T => {
     let out = q;
     const ids = options.restrictToProjectIds;
     if (ids !== undefined && ids.length > 0) {
@@ -453,6 +534,9 @@ export async function listProjectsForCalendarMonth(
     const st = options.statusFilter;
     if (st && st.length > 0) {
       out = out.in("status", st);
+    }
+    if (!canSeeIncoming) {
+      out = out.neq("status", "incoming");
     }
     return out;
   };

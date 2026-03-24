@@ -13,6 +13,7 @@ export type { NavDrawerItem } from "@/lib/nav/nav-types";
 
 type NavSideDrawerProps = {
   items: NavDrawerItem[];
+  groups?: Array<{ title: string; items: NavDrawerItem[] }>;
   /** תוכן תחתון (למשל התנתקות) */
   footer?: React.ReactNode;
   triggerClassName?: string;
@@ -24,6 +25,7 @@ type NavSideDrawerProps = {
 
 export function NavSideDrawer({
   items,
+  groups,
   footer,
   triggerClassName,
   menuLabel = "פתח תפריט",
@@ -68,28 +70,69 @@ export function NavSideDrawer({
             </Dialog.Close>
           </div>
           <nav aria-label={title} className="min-h-0 flex-1 overflow-y-auto p-3">
-            <ul className="flex flex-col gap-0.5">
-              {items.map(({ href, label }) => {
-                const active = isItemActive(pathname, href);
-                return (
-                  <li key={href}>
-                    <Dialog.Close asChild>
-                      <Link
-                        href={href}
-                        className={cn(
-                          "block rounded-md px-3 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                          active
-                            ? "bg-primary/15 text-primary"
-                            : "text-foreground hover:bg-muted",
-                        )}
-                      >
-                        {label}
-                      </Link>
-                    </Dialog.Close>
-                  </li>
-                );
-              })}
-            </ul>
+            {groups && groups.length > 0 ? (
+              <div className="space-y-1.5">
+                {groups.map((group) => {
+                  const hasActive = group.items.some((item) => isItemActive(pathname, item.href));
+                  return (
+                    <details key={group.title} className="rounded-md border border-border bg-muted/20" open={hasActive}>
+                      <summary className="cursor-pointer list-none px-3 py-2 text-sm font-semibold">{group.title}</summary>
+                      <ul className="flex flex-col gap-0.5 p-1.5 pt-0">
+                        {group.items.map(({ href, label, dividerBefore }) => {
+                          const active = isItemActive(pathname, href);
+                          return (
+                            <li
+                              key={href}
+                              className={cn(dividerBefore ? "mt-2 border-t border-border pt-2" : "")}
+                            >
+                              <Dialog.Close asChild>
+                                <Link
+                                  href={href}
+                                  className={cn(
+                                    "block rounded-md px-3 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                    active
+                                      ? "bg-primary/15 text-primary"
+                                      : "text-foreground hover:bg-muted",
+                                  )}
+                                >
+                                  {label}
+                                </Link>
+                              </Dialog.Close>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </details>
+                  );
+                })}
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-0.5">
+                {items.map(({ href, label, dividerBefore }) => {
+                  const active = isItemActive(pathname, href);
+                  return (
+                    <li
+                      key={href}
+                      className={cn(dividerBefore ? "mt-2 border-t border-border pt-2" : "")}
+                    >
+                      <Dialog.Close asChild>
+                        <Link
+                          href={href}
+                          className={cn(
+                            "block rounded-md px-3 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            active
+                              ? "bg-primary/15 text-primary"
+                              : "text-foreground hover:bg-muted",
+                          )}
+                        >
+                          {label}
+                        </Link>
+                      </Dialog.Close>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </nav>
           {footer ? <div className="border-t border-border p-4">{footer}</div> : null}
         </Dialog.Content>
