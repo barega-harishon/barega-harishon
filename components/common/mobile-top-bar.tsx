@@ -7,20 +7,17 @@ import { signOut } from "@/actions/auth";
 import { NavSideDrawer } from "@/components/common/nav-side-drawer";
 import { SettingsGearLink } from "@/components/common/settings-gear-link";
 import { Button } from "@/components/ui/button";
+import {
+  ADMIN_SIDEBAR_GROUP_LABELS,
+  ADMIN_SIDEBAR_GROUP_ORDER,
+  ADMIN_SIDEBAR_ORPHAN_GROUP_TITLE,
+  adminSidebarGroupContainsHref,
+  adminSidebarOrphanNavItems,
+} from "@/lib/nav/admin-nav-grouping";
 import type { NavDrawerItem } from "@/lib/nav/nav-types";
 import type { AppRole } from "@/types/app-role";
 
 const LOGO_ALT = "אלוף הבמה והציוד";
-
-function isInGroup(href: string, key: string) {
-  if (key === "core") return href === "/dashboard" || href === "/projects/go" || href === "/projects" || href === "/projects/calendar" || href === "/projects/kanban";
-  if (key === "quick") return href === "/projects/new";
-  if (key === "ops") return href === "/clients" || href === "/equipment" || href === "/employees" || href === "/trucks";
-  if (key === "field") return href === "/field";
-  if (key === "finance") return href === "/collections" || href === "/reports";
-  if (key === "system") return href === "/settings";
-  return false;
-}
 
 export function MobileTopBar({
   items,
@@ -30,14 +27,16 @@ export function MobileTopBar({
   role: AppRole | null;
 }) {
   const isAdmin = role === "admin";
+  const orphanItems = isAdmin ? adminSidebarOrphanNavItems(items) : [];
   const groups = isAdmin
     ? [
-        { title: "ליבה", items: items.filter((i) => isInGroup(i.href, "core")) },
-        { title: "פעולות מהירות", items: items.filter((i) => isInGroup(i.href, "quick")) },
-        { title: "תפעול", items: items.filter((i) => isInGroup(i.href, "ops")) },
-        { title: "שטח", items: items.filter((i) => isInGroup(i.href, "field")) },
-        { title: "כספים", items: items.filter((i) => isInGroup(i.href, "finance")) },
-        { title: "מערכת", items: items.filter((i) => isInGroup(i.href, "system")) },
+        ...ADMIN_SIDEBAR_GROUP_ORDER.map((key) => ({
+          title: ADMIN_SIDEBAR_GROUP_LABELS[key],
+          items: items.filter((i) => adminSidebarGroupContainsHref(i.href, key)),
+        })),
+        ...(orphanItems.length > 0
+          ? [{ title: ADMIN_SIDEBAR_ORPHAN_GROUP_TITLE, items: orphanItems }]
+          : []),
       ].filter((g) => g.items.length > 0)
     : undefined;
 

@@ -10,6 +10,13 @@ import {
   sidebarBarNavLinkClassName,
 } from "@/components/common/nav-link-styles";
 import { Button } from "@/components/ui/button";
+import {
+  ADMIN_SIDEBAR_GROUP_LABELS,
+  ADMIN_SIDEBAR_GROUP_ORDER,
+  ADMIN_SIDEBAR_ORPHAN_GROUP_TITLE,
+  adminSidebarGroupContainsHref,
+  adminSidebarOrphanNavItems,
+} from "@/lib/nav/admin-nav-grouping";
 import type { NavDrawerItem } from "@/lib/nav/nav-types";
 import type { AppRole } from "@/types/app-role";
 import { cn } from "@/utils/cn";
@@ -34,16 +41,6 @@ function renderNavItem(item: NavDrawerItem, pathname: string) {
   );
 }
 
-function isInGroup(href: string, key: string) {
-  if (key === "core") return href === "/dashboard" || href === "/projects/go" || href === "/projects" || href === "/projects/calendar" || href === "/projects/kanban";
-  if (key === "quick") return href === "/projects/new";
-  if (key === "ops") return href === "/clients" || href === "/equipment" || href === "/employees" || href === "/trucks";
-  if (key === "field") return href === "/field";
-  if (key === "finance") return href === "/collections" || href === "/reports";
-  if (key === "system") return href === "/settings";
-  return false;
-}
-
 export function SiteSidebar({
   items,
   role,
@@ -53,15 +50,7 @@ export function SiteSidebar({
 }) {
   const pathname = usePathname();
   const isAdmin = role === "admin";
-
-  const adminGroups = [
-    { key: "core", title: "ליבה" },
-    { key: "quick", title: "פעולות מהירות" },
-    { key: "ops", title: "תפעול" },
-    { key: "field", title: "שטח" },
-    { key: "finance", title: "כספים" },
-    { key: "system", title: "מערכת" },
-  ] as const;
+  const orphanNavItems = isAdmin ? adminSidebarOrphanNavItems(items) : [];
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col bg-header text-header-foreground">
@@ -82,20 +71,22 @@ export function SiteSidebar({
       <nav aria-label="ניווט ראשי" className="min-h-0 flex-1 overflow-y-auto p-2">
         {isAdmin ? (
           <div className="space-y-1.5">
-            {adminGroups.map((group) => {
-              const groupItems = items.filter((item) => isInGroup(item.href, group.key));
+            {ADMIN_SIDEBAR_GROUP_ORDER.map((groupKey) => {
+              const groupItems = items.filter((item) =>
+                adminSidebarGroupContainsHref(item.href, groupKey),
+              );
               if (groupItems.length === 0) {
                 return null;
               }
               const hasActive = groupItems.some((item) => isNavHrefActive(pathname, item.href));
               return (
                 <details
-                  key={group.key}
+                  key={groupKey}
                   className="rounded-md border border-white/10 bg-white/[0.03]"
                   open={hasActive}
                 >
                   <summary className="cursor-pointer list-none px-3 py-2 text-sm font-semibold text-header-foreground/95">
-                    {group.title}
+                    {ADMIN_SIDEBAR_GROUP_LABELS[groupKey]}
                   </summary>
                   <ul className="flex flex-col gap-0.5 p-1.5 pt-0">
                     {groupItems.map((item) => renderNavItem(item, pathname))}
@@ -103,6 +94,19 @@ export function SiteSidebar({
                 </details>
               );
             })}
+            {orphanNavItems.length > 0 ? (
+              <details
+                className="rounded-md border border-white/10 bg-white/[0.03]"
+                open={orphanNavItems.some((item) => isNavHrefActive(pathname, item.href))}
+              >
+                <summary className="cursor-pointer list-none px-3 py-2 text-sm font-semibold text-header-foreground/95">
+                  {ADMIN_SIDEBAR_ORPHAN_GROUP_TITLE}
+                </summary>
+                <ul className="flex flex-col gap-0.5 p-1.5 pt-0">
+                  {orphanNavItems.map((item) => renderNavItem(item, pathname))}
+                </ul>
+              </details>
+            ) : null}
           </div>
         ) : (
           <ul className="flex flex-col gap-0.5">
