@@ -2,6 +2,12 @@
 
 import { z } from "zod";
 
+import {
+  reservationWindowFromProjectDates,
+  reservationWindowsOverlap,
+  utcCalendarDayWindowMs,
+  type ReservationWindowMs,
+} from "@/lib/equipment/reservation-window";
 import { getSafeClientErrorMessage, toServerError } from "@/lib/errors";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/types/common";
@@ -11,21 +17,45 @@ import type {
   ProjectEquipmentLine,
 } from "@/types/project-equipment";
 
-function readProjectStatus(projects: unknown): string | undefined {
+function readProjectDateFields(projects: unknown): {
+  status: string;
+  setup_starts_at: string | null;
+  event_starts_at: string | null;
+  event_ends_at: string | null;
+  teardown_at: string | null;
+} | null {
   if (!projects || typeof projects !== "object") {
-    return undefined;
+    return null;
   }
-  if (Array.isArray(projects)) {
-    const first = projects[0];
-    if (first && typeof first === "object" && "status" in first) {
-      return String((first as { status: string }).status);
-    }
-    return undefined;
+  const p = Array.isArray(projects) ? projects[0] : projects;
+  if (!p || typeof p !== "object") {
+    return null;
   }
-  if ("status" in projects) {
-    return String((projects as { status: string }).status);
+  const o = p as Record<string, unknown>;
+  return {
+    status: String(o.status ?? ""),
+    setup_starts_at: typeof o.setup_starts_at === "string" ? o.setup_starts_at : null,
+    event_starts_at: typeof o.event_starts_at === "string" ? o.event_starts_at : null,
+    event_ends_at: typeof o.event_ends_at === "string" ? o.event_ends_at : null,
+    teardown_at: typeof o.teardown_at === "string" ? o.teardown_at : null,
+  };
+}
+
+function lineCountsForAllocation(
+  refWindow: ReservationWindowMs | null,
+  lineProject: ReturnType<typeof readProjectDateFields>,
+): boolean {
+  if (!lineProject || lineProject.status === "closed") {
+    return false;
   }
-  return undefined;
+  const lineWindow = reservationWindowFromProjectDates(lineProject);
+  if (refWindow === null) {
+    return true;
+  }
+  if (lineWindow === null) {
+    return true;
+  }
+  return reservationWindowsOverlap(refWindow, lineWindow);
 }
 
 export async function listEquipmentOptions(): Promise<EquipmentOption[]> {
@@ -51,7 +81,9 @@ export async function getEquipmentAvailabilityMap(): Promise<
     supabase.from("equipment").select("id, total_qty"),
     supabase
       .from("project_equipment")
-      .select("id, equipment_id, quantity, projects!inner(status)"),
+      .select(
+        "id, equipment_id, quantity, projects!inner(status, setup_starts_at, event_starts_at, event_ends_at, teardown_at)",
+      ),
     supabase
       .from("equipment_pick_transactions")
       .select("equipment_id, quantity")
@@ -59,6 +91,7 @@ export async function getEquipmentAvailabilityMap(): Promise<
   ]);
 
   const allocated: Record<string, number> = {};
+  const dashboardWindow = utcCalendarDayWindowMs();
 
   for (const line of lines ?? []) {
     const row = line as {
@@ -66,9 +99,8 @@ export async function getEquipmentAvailabilityMap(): Promise<
       quantity: number;
       projects: unknown;
     };
-    const status = readProjectStatus(row.projects);
-
-    if (status === "closed") {
+    const proj = readProjectDateFields(row.projects);
+    if (!lineCountsForAllocation(dashboardWindow, proj)) {
       continue;
     }
 
@@ -132,11 +164,38 @@ export async function listProjectEquipmentLines(
 async function allocatedExceptLine(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   equipmentId: string,
+  contextProjectId: string,
   excludeLineId?: string,
 ): Promise<number> {
+  const { data: ctxRow } = await supabase
+    .from("projects")
+    .select("status, setup_starts_at, event_starts_at, event_ends_at, teardown_at")
+    .eq("id", contextProjectId)
+    .maybeSingle();
+
+  const ctx = ctxRow as {
+    status?: string;
+    setup_starts_at?: string | null;
+    event_starts_at?: string | null;
+    event_ends_at?: string | null;
+    teardown_at?: string | null;
+  } | null;
+
+  const refWindow =
+    ctx && String(ctx.status) !== "closed"
+      ? reservationWindowFromProjectDates({
+          setup_starts_at: ctx.setup_starts_at ?? null,
+          event_starts_at: ctx.event_starts_at ?? null,
+          event_ends_at: ctx.event_ends_at ?? null,
+          teardown_at: ctx.teardown_at ?? null,
+        })
+      : null;
+
   const { data } = await supabase
     .from("project_equipment")
-    .select("id, quantity, projects!inner(status)")
+    .select(
+      "id, quantity, projects!inner(status, setup_starts_at, event_starts_at, event_ends_at, teardown_at)",
+    )
     .eq("equipment_id", equipmentId);
 
   let sum = 0;
@@ -147,13 +206,13 @@ async function allocatedExceptLine(
       quantity: number;
       projects: unknown;
     };
-    const status = readProjectStatus(row.projects);
 
-    if (status === "closed") {
+    if (excludeLineId && row.id === excludeLineId) {
       continue;
     }
 
-    if (excludeLineId && row.id === excludeLineId) {
+    const proj = readProjectDateFields(row.projects);
+    if (!lineCountsForAllocation(refWindow, proj)) {
       continue;
     }
 
@@ -187,6 +246,19 @@ export async function upsertProjectEquipmentLine(
       return { success: false, message: "נדרשת התחברות." };
     }
 
+    const { data: projRow, error: projLoadErr } = await supabase
+      .from("projects")
+      .select("status")
+      .eq("id", parsed.data.projectId)
+      .maybeSingle();
+
+    if (projLoadErr || !projRow) {
+      return { success: false, message: "הפרויקט לא נמצא." };
+    }
+    if (String(projRow.status) === "closed") {
+      return { success: false, message: "לא ניתן לעדכן ציוד בפרויקט סגור." };
+    }
+
     const { data: equip, error: equipError } = await supabase
       .from("equipment")
       .select("total_qty")
@@ -210,6 +282,7 @@ export async function upsertProjectEquipmentLine(
     const others = await allocatedExceptLine(
       supabase,
       parsed.data.equipmentId,
+      parsed.data.projectId,
       excludeId,
     );
 

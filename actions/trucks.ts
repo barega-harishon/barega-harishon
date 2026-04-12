@@ -14,7 +14,35 @@ const truckStatusSchema = z.enum(
   TRUCK_STATUS_VALUES as unknown as [TruckStatusValue, ...TruckStatusValue[]],
 );
 
+function normalizeTruckRowFromDb(row: Record<string, unknown>): TruckRow {
+  const driver = row.driver as TruckRow["driver"];
+  return {
+    id: String(row.id),
+    license_plate: String(row.license_plate ?? ""),
+    display_name: typeof row.display_name === "string" ? row.display_name : "",
+    notes: typeof row.notes === "string" ? row.notes : row.notes === null ? null : null,
+    driver_id: typeof row.driver_id === "string" ? row.driver_id : null,
+    status: String(row.status ?? "available"),
+    created_at: String(row.created_at ?? ""),
+    driver: driver ?? null,
+  };
+}
+
 const createTruckSchema = z.object({
+  displayName: z.preprocess(
+    (v) => (typeof v === "string" ? v : ""),
+    z.string().max(120).transform((s) => sanitizeText(s.trim())),
+  ),
+  notes: z.preprocess(
+    (v) => (typeof v === "string" ? v : ""),
+    z
+      .string()
+      .max(2000)
+      .transform((s) => {
+        const t = s.trim();
+        return t.length > 0 ? sanitizeText(t) : null;
+      }),
+  ),
   licensePlate: z
     .string()
     .min(2, "מספר רישוי קצר מדי")
@@ -34,6 +62,8 @@ export async function listTrucks(): Promise<TruckRow[]> {
       `
       id,
       license_plate,
+      display_name,
+      notes,
       driver_id,
       status,
       created_at,
@@ -46,7 +76,7 @@ export async function listTrucks(): Promise<TruckRow[]> {
     return [];
   }
 
-  return data as unknown as TruckRow[];
+  return (data as Record<string, unknown>[]).map((r) => normalizeTruckRowFromDb(r));
 }
 
 export async function getTruckById(id: string): Promise<TruckRow | null> {
@@ -62,6 +92,8 @@ export async function getTruckById(id: string): Promise<TruckRow | null> {
       `
       id,
       license_plate,
+      display_name,
+      notes,
       driver_id,
       status,
       created_at,
@@ -75,7 +107,7 @@ export async function getTruckById(id: string): Promise<TruckRow | null> {
     return null;
   }
 
-  return data as unknown as TruckRow;
+  return normalizeTruckRowFromDb(data as Record<string, unknown>);
 }
 
 export async function createTruck(payload: unknown): Promise<ActionResult<{ id: string }>> {
@@ -90,6 +122,8 @@ export async function createTruck(payload: unknown): Promise<ActionResult<{ id: 
       .from("trucks")
       .insert({
         license_plate: parsed.data.licensePlate,
+        display_name: parsed.data.displayName ?? "",
+        notes: parsed.data.notes,
         driver_id: parsed.data.driverId,
         status: parsed.data.status,
       })
@@ -135,6 +169,8 @@ export async function updateTruck(payload: unknown): Promise<ActionResult<{ id: 
       .from("trucks")
       .update({
         license_plate: parsed.data.licensePlate,
+        display_name: parsed.data.displayName ?? "",
+        notes: parsed.data.notes,
         driver_id: parsed.data.driverId,
         status: parsed.data.status,
       })
@@ -166,6 +202,8 @@ export async function createTruckFromForm(
   formData: FormData,
 ): Promise<ActionResult<{ id: string }> | null> {
   return createTruck({
+    displayName: formData.get("displayName"),
+    notes: formData.get("notes"),
     licensePlate: formData.get("licensePlate"),
     driverId: formData.get("driverId"),
     status: formData.get("status"),
@@ -178,6 +216,8 @@ export async function updateTruckFromForm(
 ): Promise<ActionResult<{ id: string }> | null> {
   return updateTruck({
     id: formData.get("id"),
+    displayName: formData.get("displayName"),
+    notes: formData.get("notes"),
     licensePlate: formData.get("licensePlate"),
     driverId: formData.get("driverId"),
     status: formData.get("status"),

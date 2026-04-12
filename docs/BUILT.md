@@ -25,7 +25,8 @@
 | דוחות עסקיים | `/reports` | צינור, תשלומים לפי חודש/סוג, פרויקטים חדשים לפי חודש, KPI; `?year=`; **ייצוא CSV** (`/api/reports/export`) — משרד/אדמין |
 | מלאי ציוד | `/equipment` | קטלוג + סינון לפי קטגוריה (`?cat=`), עמודות במחסן / משובץ / פנוי + טופס הוספה |
 | עריכת ציוד | `/equipment/[id]` | עדכון שדות; **מחיקה** (אדמין בלבד, אם אין שיבוץ לפרויקט) |
-| צוות | `/employees` | טבלת `employees` ב־Supabase: רשימה + הוספה עם פרטי קשר, בנק, מסמכים/רשיונות (משרד/תפעול/אדמין); שיבוץ מדף פרויקט |
+| צוות | `/employees` | טבלת `employees` ב־Supabase: רשימה + הוספה עם פרטי קשר, בנק, מסמכים/רשיונות (משרד/תפעול/אדמין); שיבוץ מדף פרויקט; **קישור חשבון התחברות** (`auth_user_id`) מכרטיס עובד (משרד/אדמין) |
+| משתמשים ותפקידים | `/admin/users` | **אדמין בלבד**: רשימת פרופילים, עדכון `app_role`, הזמנת משתמש במייל עם תפקיד (דורש `SUPABASE_SERVICE_ROLE_KEY` לשליחה ולהצגת דוא״ל) |
 | משאיות | `/trucks` | רשימה + עמודת **פרויקט פעיל**; הוספה/עריכה (תפעול/מחסן/אדמין); משרד צפייה בלבד; **מחיקה** אדמין בלבד |
 
 **להרצה מקומית:** `npm run dev` ואז פתיחת `http://localhost:3000`.
@@ -64,7 +65,7 @@
 | מעקב ציבורי | `lib/public-project-tracking.ts`, `lib/site-origin.ts` | טעינת פרויקט לפי טוקן (service role); מקור לקישור מלא |
 | פרופיל / תפקיד | `lib/auth/current-profile.ts`, `current-employee.ts` | `getCurrentAppRole`; `getCurrentUserEmployeeId` לשטח ודיווח שעות |
 | Supabase (דפדפן/שרת) | `lib/supabase/` | `client.ts`, `server.ts`, `middleware.ts`, `service-role.ts` (מפתח service בלבד בשרת) |
-| Middleware | `middleware.ts` | סשן + הגנה על `/projects`, `/field`, `/clients`, … `/dashboard`, **`/reports`**, `/collections` |
+| Middleware | `middleware.ts` | סשן + הגנה על `/projects`, `/field`, `/clients`, … `/dashboard`, **`/reports`**, `/collections`, **`/admin`** |
 | טיפוסים | `types/` | פרויקטים, תשלומים, תפקיד אפליקציה |
 | מיגרציות DB | `supabase/migrations/` | סכמה, Storage, `project_trucks`, RPC משאיות, **טריגרים**, **`time_entries`**, **עדכון סטטוס פרויקט לשטח משובץ** |
 | כללי Cursor | `.cursor/rules/` | עקביות פיתוח |

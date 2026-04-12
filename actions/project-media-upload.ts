@@ -21,7 +21,7 @@ async function loadSiteRow(supabase: Awaited<ReturnType<typeof createServerSupab
   const { data } = await supabase
     .from("project_site_details")
     .select(
-      "access_notes, cladding_color, notes, sketch_path, site_photo_paths, submitted_by_client",
+      "access_notes, cladding_color, carpet_cladding_color, fabric_cladding_color, notes, sketch_path, site_photo_paths, submitted_by_client",
     )
     .eq("project_id", projectId)
     .maybeSingle();
@@ -42,6 +42,8 @@ async function upsertSiteDetails(
       project_id: projectId,
       access_notes: row?.access_notes ?? null,
       cladding_color: row?.cladding_color ?? null,
+      carpet_cladding_color: row?.carpet_cladding_color ?? null,
+      fabric_cladding_color: row?.fabric_cladding_color ?? null,
       notes: row?.notes ?? null,
       sketch_path: row?.sketch_path ?? null,
       site_photo_paths: row?.site_photo_paths ?? [],

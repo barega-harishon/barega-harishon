@@ -31,7 +31,7 @@ export function LoginForm({ nextPath }: LoginFormProps) {
           type="email"
           autoComplete="email"
           required
-          placeholder="you@example.com"
+          placeholder="הזינו כתובת דוא״ל"
         />
       </div>
       <div className="space-y-1.5">

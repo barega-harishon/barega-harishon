@@ -10,6 +10,7 @@ import { TRUCK_STATUS_LABELS, TRUCK_STATUS_VALUES } from "@/types/trucks";
 import type { TruckStatusValue } from "@/types/trucks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 const selectClassName =
   "flex h-10 w-full rounded-[var(--radius)] border border-border bg-input px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -36,10 +37,22 @@ export function NewTruckForm({ employeeOptions }: NewTruckFormProps) {
       <h2 className="text-sm font-semibold">משאית חדשה</h2>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5 sm:col-span-2">
+          <label className="text-sm font-medium" htmlFor="displayName">
+            שם תצוגה (אופציונלי)
+          </label>
+          <Input id="displayName" name="displayName" placeholder="למשל משאית צוות א׳" type="text" />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
           <label className="text-sm font-medium" htmlFor="licensePlate">
             מספר רישוי
           </label>
           <Input id="licensePlate" name="licensePlate" required type="text" />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <label className="text-sm font-medium" htmlFor="notes">
+            הערות פנימיות
+          </label>
+          <Textarea id="notes" name="notes" placeholder="תחזוקה, מגבלות, הערות למשרד…" rows={3} />
         </div>
         <div className="space-y-1.5 sm:col-span-2">
           <label className="text-sm font-medium" htmlFor="driverId">

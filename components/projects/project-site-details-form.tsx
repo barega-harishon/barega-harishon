@@ -1,17 +1,25 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { upsertProjectSiteDetailsFromForm } from "@/actions/project-site-details";
+import { CladdingSwatchGroup } from "@/components/inquiry/cladding-swatch-group";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { ProjectSiteDetails } from "@/types/project-site";
 
 interface ProjectSiteDetailsFormProps {
   projectId: string;
   initial: ProjectSiteDetails | null;
+}
+
+function initialCarpetColor(site: ProjectSiteDetails | null): string {
+  return site?.carpet_cladding_color?.trim() || site?.cladding_color?.trim() || "";
+}
+
+function initialFabricColor(site: ProjectSiteDetails | null): string {
+  return site?.fabric_cladding_color?.trim() || site?.cladding_color?.trim() || "";
 }
 
 export function ProjectSiteDetailsForm({
@@ -23,6 +31,18 @@ export function ProjectSiteDetailsForm({
     upsertProjectSiteDetailsFromForm,
     null,
   );
+
+  const [carpetCladdingColor, setCarpetCladdingColor] = useState(() =>
+    initialCarpetColor(initial),
+  );
+  const [fabricCladdingColor, setFabricCladdingColor] = useState(() =>
+    initialFabricColor(initial),
+  );
+
+  useEffect(() => {
+    setCarpetCladdingColor(initialCarpetColor(initial));
+    setFabricCladdingColor(initialFabricColor(initial));
+  }, [initial]);
 
   useEffect(() => {
     if (state?.success) {
@@ -46,17 +66,18 @@ export function ProjectSiteDetailsForm({
         />
       </div>
 
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium text-foreground" htmlFor="claddingColor">
-          צבע חיפוי
-        </label>
-        <Input
-          defaultValue={initial?.cladding_color ?? ""}
-          id="claddingColor"
-          name="claddingColor"
-          placeholder="למשל לבן / מותג צבע"
-        />
-      </div>
+      <input name="carpetCladdingColor" type="hidden" value={carpetCladdingColor} />
+      <input name="fabricCladdingColor" type="hidden" value={fabricCladdingColor} />
+      <CladdingSwatchGroup
+        onChange={setCarpetCladdingColor}
+        title="צבע שטיח (חיפוי)"
+        value={carpetCladdingColor}
+      />
+      <CladdingSwatchGroup
+        onChange={setFabricCladdingColor}
+        title="צבע בד (חיפוי)"
+        value={fabricCladdingColor}
+      />
 
       <div className="space-y-1.5">
         <label className="text-sm font-medium text-foreground" htmlFor="notes">

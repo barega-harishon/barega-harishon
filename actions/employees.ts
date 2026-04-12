@@ -188,7 +188,22 @@ export async function listEmployeeFileEvents(employeeId: string): Promise<
 
 function withNullExtendedFields(rows: Array<Record<string, unknown>>): EmployeeRow[] {
   return rows.map((row) => ({
-    ...(row as Omit<EmployeeRow, "phone" | "email" | "national_id" | "bank_name" | "bank_branch" | "bank_account_number" | "bank_account_holder" | "documents_notes" | "licenses_notes" | "documents_paths" | "licenses_paths">),
+    ...(row as Omit<
+      EmployeeRow,
+      | "auth_user_id"
+      | "phone"
+      | "email"
+      | "national_id"
+      | "bank_name"
+      | "bank_branch"
+      | "bank_account_number"
+      | "bank_account_holder"
+      | "documents_notes"
+      | "licenses_notes"
+      | "documents_paths"
+      | "licenses_paths"
+    >),
+    auth_user_id: null,
     phone: null,
     email: null,
     national_id: null,
@@ -253,7 +268,7 @@ export async function listEmployees(): Promise<EmployeeRow[]> {
   const fullSelect = await supabase
     .from("employees")
     .select(
-      "id, name, type, hourly_rate, availability_note, created_at, phone, email, national_id, bank_name, bank_branch, bank_account_number, bank_account_holder, documents_notes, licenses_notes, documents_paths, licenses_paths",
+      "id, auth_user_id, name, type, hourly_rate, availability_note, created_at, phone, email, national_id, bank_name, bank_branch, bank_account_number, bank_account_holder, documents_notes, licenses_notes, documents_paths, licenses_paths",
     )
     .order("name", { ascending: true });
 
@@ -295,7 +310,7 @@ export async function listEmployeesWithHealth(): Promise<{
   const fullSelect = await supabase
     .from("employees")
     .select(
-      "id, name, type, hourly_rate, availability_note, created_at, phone, email, national_id, bank_name, bank_branch, bank_account_number, bank_account_holder, documents_notes, licenses_notes, documents_paths, licenses_paths",
+      "id, auth_user_id, name, type, hourly_rate, availability_note, created_at, phone, email, national_id, bank_name, bank_branch, bank_account_number, bank_account_holder, documents_notes, licenses_notes, documents_paths, licenses_paths",
     )
     .order("name", { ascending: true });
 
@@ -348,7 +363,7 @@ export async function getEmployeeById(employeeId: string): Promise<EmployeeRow |
   const fullSelect = await supabase
     .from("employees")
     .select(
-      "id, name, type, hourly_rate, availability_note, created_at, phone, email, national_id, bank_name, bank_branch, bank_account_number, bank_account_holder, documents_notes, licenses_notes, documents_paths, licenses_paths",
+      "id, auth_user_id, name, type, hourly_rate, availability_note, created_at, phone, email, national_id, bank_name, bank_branch, bank_account_number, bank_account_holder, documents_notes, licenses_notes, documents_paths, licenses_paths",
     )
     .eq("id", parsed.data)
     .maybeSingle();

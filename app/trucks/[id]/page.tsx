@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getCurrentAppRole } from "@/lib/auth/current-profile";
-import { normalizeTruckStatusForForm, TRUCK_STATUS_LABELS } from "@/types/trucks";
+import { normalizeTruckStatusForForm, TRUCK_STATUS_LABELS, truckDisplayLabel } from "@/types/trucks";
 
 export const dynamic = "force-dynamic";
 
@@ -53,8 +53,8 @@ export default async function EditTruckPage({
         {canManage ? (
           <Card>
             <CardHeader>
-              <CardTitle>{truck.license_plate}</CardTitle>
-              <CardDescription>עדכון רישוי, נהג וסטטוס.</CardDescription>
+              <CardTitle>{truckDisplayLabel(truck)}</CardTitle>
+              <CardDescription>רישוי {truck.license_plate} — שם, הערות, נהג וסטטוס.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {activeProject ? (
@@ -71,10 +71,16 @@ export default async function EditTruckPage({
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle>{truck.license_plate}</CardTitle>
-              <CardDescription>צפייה בלבד (משרד).</CardDescription>
+              <CardTitle>{truckDisplayLabel(truck)}</CardTitle>
+              <CardDescription>רישוי {truck.license_plate} — צפייה בלבד (משרד).</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
+              {truck.notes ? (
+                <p>
+                  <span className="font-medium text-foreground">הערות: </span>
+                  {truck.notes}
+                </p>
+              ) : null}
               <p>
                 <span className="font-medium text-foreground">נהג: </span>
                 {truck.driver?.name ?? "—"}

@@ -16,14 +16,7 @@ import {
 } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
 import type { ActionResult } from "@/types/common";
-
-const CLADDING_SWATCH_OPTIONS = [
-  { label: "שחור", value: "שחור", code: "RAL 9005", hex: "#0A0A0A" },
-  { label: "אפור כהה", value: "אפור כהה", code: "RAL 7016", hex: "#30343F" },
-  { label: "כחול נייבי", value: "כחול נייבי", code: "RAL 5003", hex: "#1D2C55" },
-  { label: "כחול רויאל", value: "כחול רויאל", code: "RAL 5002", hex: "#123F8A" },
-  { label: "לבן", value: "לבן", code: "RAL 9016", hex: "#F5F7FA" },
-] as const;
+import { CladdingSwatchGroup } from "@/components/inquiry/cladding-swatch-group";
 
 export function PublicInquiryForm() {
   const [state, action, pending] = useActionState(
@@ -49,7 +42,8 @@ export function PublicInquiryForm() {
   const [clientAddress, setClientAddress] = useState("");
   const [autofillLocked, setAutofillLocked] = useState(false);
   const [manualEditEnabled, setManualEditEnabled] = useState(false);
-  const [claddingColor, setCladdingColor] = useState("");
+  const [carpetCladdingColor, setCarpetCladdingColor] = useState("");
+  const [fabricCladdingColor, setFabricCladdingColor] = useState("");
   const lookupReqRef = useRef(0);
 
   const totalPhotoMb = useMemo(
@@ -58,8 +52,20 @@ export function PublicInquiryForm() {
   );
 
   function validateClient() {
-    if (!clientPhone.trim() && !clientEmail.trim()) {
-      setClientError("נא למלא לפחות טלפון או דוא״ל.");
+    if (!clientPhone.trim()) {
+      setClientError("נא למלא מספר טלפון.");
+      return false;
+    }
+    if (!clientEmail.trim()) {
+      setClientError("נא למלא דוא״ל.");
+      return false;
+    }
+    if (!nationalId.trim()) {
+      setClientError("נא למלא מספר זהות או ח״פ.");
+      return false;
+    }
+    if (nationalId.replace(/\D/g, "").length < 5) {
+      setClientError("נא למלא לפחות 5 ספרות במספר הזהות או בח״פ.");
       return false;
     }
     setClientError(null);
@@ -67,6 +73,14 @@ export function PublicInquiryForm() {
   }
 
   function validateDates() {
+    if (!setupStartsAt.trim()) {
+      setDateError("נא לבחור תאריך ושעת הקמה.");
+      return false;
+    }
+    if (!teardownAt.trim()) {
+      setDateError("נא לבחור תאריך ושעת פירוק.");
+      return false;
+    }
     const setup = setupStartsAt ? new Date(setupStartsAt).getTime() : null;
     const start = eventStartsAt ? new Date(eventStartsAt).getTime() : null;
     const end = eventEndsAt ? new Date(eventEndsAt).getTime() : null;
@@ -82,6 +96,10 @@ export function PublicInquiryForm() {
     }
     if (end && tear && end > tear) {
       setDateError("סיום האירוע חייב להיות לפני זמן הפירוק.");
+      return false;
+    }
+    if (start && tear && start > tear) {
+      setDateError("תחילת האירוע חייבת להיות לפני זמן הפירוק.");
       return false;
     }
     setDateError(null);
@@ -217,7 +235,7 @@ export function PublicInquiryForm() {
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium" htmlFor="clientPhone">
-              טלפון
+              טלפון <span className="text-destructive">*</span>
             </label>
             <Input
               autoComplete="tel"
@@ -228,6 +246,7 @@ export function PublicInquiryForm() {
                 validateClient();
               }}
               onChange={(e) => setClientPhone(e.target.value)}
+              required
               type="tel"
               value={clientPhone}
               disabled={autofillLocked && !manualEditEnabled}
@@ -235,7 +254,7 @@ export function PublicInquiryForm() {
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium" htmlFor="clientEmail">
-              דוא״ל
+              דוא״ל <span className="text-destructive">*</span>
             </label>
             <Input
               autoComplete="email"
@@ -246,6 +265,7 @@ export function PublicInquiryForm() {
                 validateClient();
               }}
               onChange={(e) => setClientEmail(e.target.value)}
+              required
               type="email"
               value={clientEmail}
               disabled={autofillLocked && !manualEditEnabled}
@@ -253,13 +273,14 @@ export function PublicInquiryForm() {
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <label className="text-sm font-medium" htmlFor="nationalId">
-              ח״פ / ת״ז
+              ח״פ / ת״ז <span className="text-destructive">*</span>
             </label>
             <Input
               id="nationalId"
               inputMode="numeric"
               name="nationalId"
               onChange={(e) => setNationalId(e.target.value)}
+              required
               value={nationalId}
               disabled={autofillLocked && !manualEditEnabled}
             />
@@ -294,7 +315,7 @@ export function PublicInquiryForm() {
             {clientError}
           </p>
         ) : (
-          <p className="text-xs text-muted-foreground">נא למלא לפחות טלפון או דוא״ל.</p>
+          <p className="text-xs text-muted-foreground">טלפון, דוא״ל ומספר זהות או ח״פ — חובה.</p>
         )}
       </section>
 
@@ -309,14 +330,16 @@ export function PublicInquiryForm() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label className="text-sm font-medium" htmlFor="setupStartsAt">
-              תאריך ושעת הקמה
+              תאריך ושעת הקמה <span className="text-destructive">*</span>
             </label>
             <Input
               id="setupStartsAt"
               name="setupStartsAt"
               onBlur={validateDates}
               onChange={(e) => setSetupStartsAt(e.target.value)}
+              required
               type="datetime-local"
+              value={setupStartsAt}
             />
           </div>
           <div className="space-y-1.5">
@@ -346,14 +369,16 @@ export function PublicInquiryForm() {
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium" htmlFor="teardownAt">
-              תאריך ושעת פירוק
+              תאריך ושעת פירוק <span className="text-destructive">*</span>
             </label>
             <Input
               id="teardownAt"
               name="teardownAt"
               onBlur={validateDates}
               onChange={(e) => setTeardownAt(e.target.value)}
+              required
               type="datetime-local"
+              value={teardownAt}
             />
           </div>
         </div>
@@ -372,40 +397,18 @@ export function PublicInquiryForm() {
           </label>
           <Textarea id="accessNotes" name="accessNotes" rows={3} />
         </div>
-        <div className="space-y-1.5">
-          <p className="text-sm font-medium">צבע חיפוי</p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {CLADDING_SWATCH_OPTIONS.map((opt) => {
-              const selected = claddingColor === opt.value;
-              return (
-                <label
-                  key={opt.value}
-                  className={`flex cursor-pointer flex-col items-center rounded-[var(--radius)] border p-3 text-center transition ${
-                    selected
-                      ? "border-primary bg-primary/10 ring-1 ring-primary/40"
-                      : "border-border bg-card hover:bg-muted/40"
-                  }`}
-                >
-                  <input
-                    checked={selected}
-                    className="sr-only"
-                    name="claddingColor"
-                    onChange={() => setCladdingColor(opt.value)}
-                    type="radio"
-                    value={opt.value}
-                  />
-                  <span
-                    aria-hidden="true"
-                    className="mb-2 h-10 w-10 rounded-full border border-black/15 shadow-sm"
-                    style={{ backgroundColor: opt.hex }}
-                  />
-                  <span className="text-sm font-medium">{opt.label}</span>
-                  <span className="text-xs text-muted-foreground">{opt.code}</span>
-                </label>
-              );
-            })}
-          </div>
-        </div>
+        <input name="carpetCladdingColor" type="hidden" value={carpetCladdingColor} />
+        <input name="fabricCladdingColor" type="hidden" value={fabricCladdingColor} />
+        <CladdingSwatchGroup
+          onChange={setCarpetCladdingColor}
+          title="צבע שטיח (חיפוי)"
+          value={carpetCladdingColor}
+        />
+        <CladdingSwatchGroup
+          onChange={setFabricCladdingColor}
+          title="צבע בד (חיפוי)"
+          value={fabricCladdingColor}
+        />
         <div className="space-y-1.5">
           <label className="text-sm font-medium" htmlFor="notes">
             הערות נוספות

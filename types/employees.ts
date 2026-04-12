@@ -9,6 +9,7 @@ export const EMPLOYEE_TYPE_LABELS: Record<EmployeeType, string> = {
 
 export interface EmployeeRow {
   id: string;
+  auth_user_id: string | null;
   name: string;
   type: EmployeeType;
   hourly_rate: string | number | null;

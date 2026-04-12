@@ -1,5 +1,9 @@
+import { EQUIPMENT_PREDEFINED_CATEGORIES } from "@/lib/equipment/equipment-categories";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+
+const selectClassName =
+  "flex h-10 w-full rounded-[var(--radius)] border border-border bg-input px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 interface EquipmentFormFieldsProps {
   defaultValues?: {
@@ -19,6 +23,13 @@ export function EquipmentFormFields({ defaultValues }: EquipmentFormFieldsProps)
         ? Number.parseFloat(String(defaultValues.rentPrice))
         : "";
 
+  const currentCat = defaultValues?.category?.trim() ?? "";
+  const legacyCategory =
+    currentCat !== "" &&
+    !(EQUIPMENT_PREDEFINED_CATEGORIES as readonly string[]).includes(currentCat)
+      ? currentCat
+      : null;
+
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <div className="space-y-1.5 sm:col-span-2">
@@ -37,12 +48,19 @@ export function EquipmentFormFields({ defaultValues }: EquipmentFormFieldsProps)
         <label className="text-sm font-medium" htmlFor="category">
           קטגוריה
         </label>
-        <Input
-          defaultValue={defaultValues?.category ?? ""}
-          id="category"
-          name="category"
-          placeholder="כיסאות / במות"
-        />
+        <select className={selectClassName} defaultValue={currentCat} id="category" name="category">
+          <option value="">ללא קטגוריה</option>
+          {EQUIPMENT_PREDEFINED_CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+          {legacyCategory ? (
+            <option value={legacyCategory}>
+              {legacyCategory} (קטגוריה קיימת — בחרו &quot;אחר&quot; אם צריך לאחד)
+            </option>
+          ) : null}
+        </select>
       </div>
       <div className="space-y-1.5">
         <label className="text-sm font-medium" htmlFor="totalQty">

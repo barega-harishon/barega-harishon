@@ -1,6 +1,6 @@
 import type { NavDrawerItem } from "@/lib/nav/nav-types";
 import type { AppRole } from "@/types/app-role";
-import { isFieldRole, isOfficeOrAdminRole } from "@/types/app-role";
+import { isAdminRole, isFieldRole, isOfficeOrAdminRole } from "@/types/app-role";
 
 export function buildMainNavItems(role: AppRole | null): NavDrawerItem[] {
   const isField = isFieldRole(role);
@@ -52,6 +52,9 @@ export function buildMainNavItems(role: AppRole | null): NavDrawerItem[] {
   if (showCollections) {
     items.push({ href: "/collections", label: "גבייה", dividerBefore: true });
     items.push({ href: "/reports", label: "דוחות" });
+  }
+  if (isAdminRole(role)) {
+    items.push({ href: "/admin/users", label: "משתמשים", dividerBefore: true });
   }
   return items;
 }

@@ -4,23 +4,30 @@ import { z } from "zod";
 
 import { getEquipmentAvailabilityMap } from "@/actions/project-equipment";
 import { EQUIPMENT_UNCATEGORIZED } from "@/lib/equipment/catalog-constants";
+import {
+  isAllowedEquipmentCategory,
+  mergeCategoryFilterOptions,
+} from "@/lib/equipment/equipment-categories";
 import { getSafeClientErrorMessage, toServerError } from "@/lib/errors";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/types/common";
 import type { EquipmentRow, EquipmentRowWithAvailability } from "@/types/equipment-catalog";
 import { sanitizeText } from "@/utils/sanitize";
 
-const equipmentFieldsSchema = z.object({
+const categoryFieldBase = z.preprocess(
+  (v) => (typeof v === "string" ? v : ""),
+  z.string().max(100).transform((v) => sanitizeText(v.trim())),
+);
+
+const equipmentCreateSchema = z.object({
   name: z
     .string()
     .min(1, "נא להזין שם פריט")
     .max(120, "שם ארוך מדי")
     .transform((v) => sanitizeText(v)),
-  category: z
-    .string()
-    .max(100)
-    .optional()
-    .transform((v) => (v ? sanitizeText(v) : "")),
+  category: categoryFieldBase.refine((c) => isAllowedEquipmentCategory(c), {
+    message: "נא לבחור קטגוריה מהרשימה או \"ללא קטגוריה\".",
+  }),
   totalQty: z.coerce.number().int().min(0, "כמות לא תקינה").max(999_999),
   rentPrice: z.coerce.number().min(0, "מחיר לא תקין").max(99_999_999),
   warehouseLocation: z
@@ -28,6 +35,10 @@ const equipmentFieldsSchema = z.object({
     .max(200)
     .optional()
     .transform((v) => (v ? sanitizeText(v) : "")),
+});
+
+const equipmentUpdateSchema = equipmentCreateSchema.extend({
+  id: z.string().uuid(),
 });
 
 export async function listEquipmentRows(categoryFilter?: string | null): Promise<EquipmentRow[]> {
@@ -75,7 +86,8 @@ export async function listEquipmentCategoryOptions(): Promise<{
     }
   }
 
-  const categories = [...set].sort((a, b) => a.localeCompare(b, "he"));
+  const fromDb = [...set].sort((a, b) => a.localeCompare(b, "he"));
+  const categories = mergeCategoryFilterOptions(fromDb);
 
   return { categories, hasUncategorized };
 }
@@ -121,7 +133,7 @@ export async function getEquipmentRowById(id: string): Promise<EquipmentRow | nu
 export async function createEquipment(
   payload: unknown,
 ): Promise<ActionResult<{ id: string }>> {
-  const parsed = equipmentFieldsSchema.safeParse(payload);
+  const parsed = equipmentCreateSchema.safeParse(payload);
   if (!parsed.success) {
     return { success: false, message: "יש שדות לא תקינים." };
   }
@@ -155,16 +167,21 @@ export async function createEquipment(
   }
 }
 
-const updateEquipmentSchema = equipmentFieldsSchema.extend({
-  id: z.string().uuid(),
-});
-
 export async function updateEquipment(
   payload: unknown,
 ): Promise<ActionResult<{ id: string }>> {
-  const parsed = updateEquipmentSchema.safeParse(payload);
+  const parsed = equipmentUpdateSchema.safeParse(payload);
   if (!parsed.success) {
     return { success: false, message: "יש שדות לא תקינים." };
+  }
+
+  const existing = await getEquipmentRowById(parsed.data.id);
+  const prevCat = (existing?.category ?? "").trim();
+  if (!isAllowedEquipmentCategory(parsed.data.category) && parsed.data.category !== prevCat) {
+    return {
+      success: false,
+      message: "נא לבחור קטגוריה מהרשימה (או להשאיר את הקטגוריה הקיימת).",
+    };
   }
 
   try {

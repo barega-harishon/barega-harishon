@@ -7,7 +7,7 @@ import { selectorButtonClass } from "@/components/common/selector-button-styles"
 import { NewTruckForm } from "@/components/trucks/new-truck-form";
 import { Button } from "@/components/ui/button";
 import { getCurrentAppRole } from "@/lib/auth/current-profile";
-import { normalizeTruckStatusForForm, TRUCK_STATUS_LABELS } from "@/types/trucks";
+import { normalizeTruckStatusForForm, TRUCK_STATUS_LABELS, truckDisplayLabel } from "@/types/trucks";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +59,7 @@ export default async function TrucksPage() {
           <table className="w-full min-w-[48rem] border-collapse text-start text-sm">
             <thead className="border-b border-border bg-muted/50">
               <tr>
+                <th className="px-4 py-3 font-medium">שם</th>
                 <th className="px-4 py-3 font-medium">רישוי</th>
                 <th className="px-4 py-3 font-medium">נהג</th>
                 <th className="px-4 py-3 font-medium">סטטוס</th>
@@ -72,7 +73,8 @@ export default async function TrucksPage() {
                 const active = activeByTruck[row.id];
                 return (
                   <tr className="border-b border-border transition-colors hover:bg-muted/30 last:border-0" key={row.id}>
-                    <td className="px-4 py-3 font-medium">{row.license_plate}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{truckDisplayLabel(row)}</td>
+                    <td className="px-4 py-3 font-medium font-mono text-sm">{row.license_plate}</td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {row.driver?.name ?? "—"}
                     </td>

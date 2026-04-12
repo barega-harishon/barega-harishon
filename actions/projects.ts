@@ -8,6 +8,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isOfficeOrAdminRole } from "@/types/app-role";
 import type { ActionResult } from "@/types/common";
 import type { CalendarProjectRow } from "@/types/calendar";
+import type { AppRole } from "@/types/app-role";
 import type { ProjectDetailRow, ProjectListRow, ProjectStatus } from "@/types/projects";
 import { sanitizeText } from "@/utils/sanitize";
 
@@ -193,6 +194,8 @@ export async function getProjectById(id: string): Promise<ProjectDetailRow | nul
       project_site_details (
         access_notes,
         cladding_color,
+        carpet_cladding_color,
+        fabric_cladding_color,
         notes,
         site_photo_paths,
         sketch_path,
@@ -286,6 +289,129 @@ export async function createProjectFromForm(
 ): Promise<ActionResult<{ id: string }> | null> {
   return createProject({
     clientId: formData.get("clientId"),
+    locationAddress: formData.get("locationAddress"),
+    setupStartsAt: formData.get("setupStartsAt"),
+    eventStartsAt: formData.get("eventStartsAt"),
+    eventEndsAt: formData.get("eventEndsAt"),
+    teardownAt: formData.get("teardownAt"),
+  });
+}
+
+function canEditProjectCoreDetails(role: AppRole | null): boolean {
+  return role === "admin" || role === "office" || role === "operations";
+}
+
+const updateProjectCoreSchema = z
+  .object({
+    projectId: z.string().uuid(),
+    locationAddress: z
+      .string()
+      .max(500, "כתובת ארוכה מדי")
+      .transform((v) => sanitizeText(v.trim())),
+    setupStartsAt: z.string().optional(),
+    eventStartsAt: z.string().optional(),
+    eventEndsAt: z.string().optional(),
+    teardownAt: z.string().optional(),
+  })
+  .refine((d) => d.locationAddress.length >= 3, { message: "נא למלא כתובת אירוע." })
+  .refine((d) => Boolean(d.eventStartsAt?.trim()), { message: "נא לבחור תאריך תחילת אירוע." })
+  .refine(
+    (d) => {
+      const setup = toIsoOrNull(d.setupStartsAt);
+      const start = toIsoOrNull(d.eventStartsAt);
+      if (!setup || !start) {
+        return true;
+      }
+      return new Date(setup).getTime() <= new Date(start).getTime();
+    },
+    { message: "תאריך הקמה חייב להיות לפני או באותו זמן כמו תחילת האירוע." },
+  )
+  .refine(
+    (d) => {
+      const start = toIsoOrNull(d.eventStartsAt);
+      const end = toIsoOrNull(d.eventEndsAt);
+      if (!start || !end) {
+        return true;
+      }
+      return new Date(start).getTime() <= new Date(end).getTime();
+    },
+    { message: "תחילת האירוע חייבת להיות לפני או בזמן סיום האירוע." },
+  )
+  .refine(
+    (d) => {
+      const end = toIsoOrNull(d.eventEndsAt);
+      const tear = toIsoOrNull(d.teardownAt);
+      if (!end || !tear) {
+        return true;
+      }
+      return new Date(end).getTime() <= new Date(tear).getTime();
+    },
+    { message: "סיום האירוע חייב להיות לפני או בזמן הפירוק." },
+  )
+  .refine(
+    (d) => {
+      const start = toIsoOrNull(d.eventStartsAt);
+      const tear = toIsoOrNull(d.teardownAt);
+      if (!start || !tear) {
+        return true;
+      }
+      return new Date(start).getTime() <= new Date(tear).getTime();
+    },
+    { message: "תחילת האירוע חייבת להיות לפני או בזמן הפירוק." },
+  );
+
+export async function updateProjectCore(
+  payload: unknown,
+): Promise<ActionResult<Record<string, never>>> {
+  const parsed = updateProjectCoreSchema.safeParse(payload);
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return { success: false, message: first?.message ?? "יש שגיאות בפרטי הפרויקט." };
+  }
+
+  try {
+    const role = await getCurrentAppRole();
+    if (!canEditProjectCoreDetails(role)) {
+      return { success: false, message: "אין הרשאה לעדכן פרטי פרויקט." };
+    }
+
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, message: "נדרשת התחברות." };
+    }
+
+    const { error } = await supabase
+      .from("projects")
+      .update({
+        location_address: parsed.data.locationAddress,
+        setup_starts_at: toIsoOrNull(parsed.data.setupStartsAt),
+        event_starts_at: toIsoOrNull(parsed.data.eventStartsAt),
+        event_ends_at: toIsoOrNull(parsed.data.eventEndsAt),
+        teardown_at: toIsoOrNull(parsed.data.teardownAt),
+      })
+      .eq("id", parsed.data.projectId);
+
+    if (error) {
+      return { success: false, message: getSafeClientErrorMessage() };
+    }
+
+    return { success: true, message: "פרטי הפרויקט עודכנו." };
+  } catch (error) {
+    console.error("updateProjectCore failed", toServerError(error));
+    return { success: false, message: getSafeClientErrorMessage() };
+  }
+}
+
+export async function updateProjectCoreFromForm(
+  _prev: ActionResult<Record<string, never>> | null,
+  formData: FormData,
+): Promise<ActionResult<Record<string, never>> | null> {
+  return updateProjectCore({
+    projectId: formData.get("projectId"),
     locationAddress: formData.get("locationAddress"),
     setupStartsAt: formData.get("setupStartsAt"),
     eventStartsAt: formData.get("eventStartsAt"),

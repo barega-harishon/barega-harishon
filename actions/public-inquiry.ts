@@ -14,6 +14,11 @@ import {
   SKETCH_MIME,
   SKETCHES_BUCKET,
 } from "@/lib/storage/buckets";
+import {
+  reservationWindowFromProjectDates,
+  reservationWindowsOverlap,
+} from "@/lib/equipment/reservation-window";
+import { zCladdingSwatchField } from "@/lib/inquiry/cladding-options";
 import { hasServiceRoleKey, createServiceRoleSupabaseClient } from "@/lib/supabase/service-role";
 import type { ActionResult } from "@/types/common";
 import { sanitizeText } from "@/utils/sanitize";
@@ -43,6 +48,14 @@ function toIsoOrNull(value: string | undefined): string | null {
   return d.toISOString();
 }
 
+function normalizeNationalId(raw: string | undefined): string {
+  return (raw ?? "").replace(/\D/g, "").slice(0, 20);
+}
+
+function normalizePhone(raw: string | undefined): string {
+  return (raw ?? "").replace(/[^\d+]/g, "").slice(0, 20);
+}
+
 const inquirySchema = z
   .object({
     honeypot: z
@@ -55,19 +68,23 @@ const inquirySchema = z
       .transform((v) => sanitizeText(v)),
     clientPhone: z
       .string()
+      .min(6, "נא למלא מספר טלפון תקין")
       .max(40)
-      .optional()
-      .transform((v) => (v ? sanitizeText(v.trim()) : "")),
+      .transform((v) => sanitizeText(v.trim())),
     clientEmail: z
       .string()
+      .min(3, "נא למלא דוא״ל")
       .max(120)
-      .optional()
-      .transform((v) => (v ? sanitizeText(v.trim().toLowerCase()) : "")),
+      .email({ message: "נא למלא כתובת דוא״ל תקינה" })
+      .transform((v) => sanitizeText(v.trim().toLowerCase())),
     nationalId: z
       .string()
+      .min(1, "נא למלא מספר זהות או ח״פ")
       .max(20)
-      .optional()
-      .transform((v) => (v ? sanitizeText(v.trim()) : "")),
+      .transform((v) => sanitizeText(v.trim()))
+      .refine((v) => normalizeNationalId(v).length >= 5, {
+        message: "נא למלא לפחות 5 ספרות במספר הזהות או בח״פ.",
+      }),
     clientAddress: z
       .string()
       .max(500)
@@ -78,20 +95,17 @@ const inquirySchema = z
       .min(3, "נא למלא כתובת אירוע")
       .max(500)
       .transform((v) => sanitizeText(v)),
-    setupStartsAt: z.string().optional(),
+    setupStartsAt: z.string().min(1, "נא לבחור תאריך ושעת הקמה"),
     eventStartsAt: z.string().min(1, "נא לבחור תאריך ושעה לאירוע"),
     eventEndsAt: z.string().optional(),
-    teardownAt: z.string().optional(),
+    teardownAt: z.string().min(1, "נא לבחור תאריך ושעת פירוק"),
     accessNotes: z
       .string()
       .max(2000)
       .optional()
       .transform((v) => (v ? sanitizeText(v) : "")),
-    claddingColor: z
-      .string()
-      .max(200)
-      .optional()
-      .transform((v) => (v ? sanitizeText(v) : "")),
+    carpetCladdingColor: zCladdingSwatchField,
+    fabricCladdingColor: zCladdingSwatchField,
     notes: z
       .string()
       .max(2000)
@@ -100,9 +114,6 @@ const inquirySchema = z
   })
   .refine((d) => d.honeypot === "", {
     message: "בקשה לא תקינה.",
-  })
-  .refine((d) => Boolean(d.clientPhone) || Boolean(d.clientEmail), {
-    message: "נא למלא לפחות טלפון או דוא״ל ליצירת קשר.",
   })
   .refine(
     (d) => {
@@ -136,6 +147,17 @@ const inquirySchema = z
       return new Date(end).getTime() <= new Date(tear).getTime();
     },
     { message: "סיום האירוע חייב להיות לפני או בזמן הפירוק." },
+  )
+  .refine(
+    (d) => {
+      const start = toIsoOrNull(d.eventStartsAt);
+      const tear = toIsoOrNull(d.teardownAt);
+      if (!start || !tear) {
+        return true;
+      }
+      return new Date(start).getTime() <= new Date(tear).getTime();
+    },
+    { message: "תחילת האירוע חייבת להיות לפני או בזמן הפירוק." },
   );
 
 function collectPhotoFiles(formData: FormData): File[] {
@@ -146,14 +168,6 @@ function collectPhotoFiles(formData: FormData): File[] {
 function getSketchFile(formData: FormData): File | null {
   const f = formData.get("sketch");
   return f instanceof File && f.size > 0 ? f : null;
-}
-
-function normalizeNationalId(raw: string | undefined): string {
-  return (raw ?? "").replace(/\D/g, "").slice(0, 20);
-}
-
-function normalizePhone(raw: string | undefined): string {
-  return (raw ?? "").replace(/[^\d+]/g, "").slice(0, 20);
 }
 
 async function checkCentralIpWindowRateLimit(
@@ -241,7 +255,8 @@ export async function submitPublicInquiryFromForm(
     eventEndsAt: formData.get("eventEndsAt"),
     teardownAt: formData.get("teardownAt"),
     accessNotes: formData.get("accessNotes"),
-    claddingColor: formData.get("claddingColor"),
+    carpetCladdingColor: formData.get("carpetCladdingColor"),
+    fabricCladdingColor: formData.get("fabricCladdingColor"),
     notes: formData.get("notes"),
   });
 
@@ -288,6 +303,9 @@ export async function submitPublicInquiryFromForm(
 
   if (!eventStartIso) {
     return { success: false, message: "תאריך אירוע לא תקין." };
+  }
+  if (!setupIso || !teardownIso) {
+    return { success: false, message: "תאריכי הקמה או פירוק לא תקינים." };
   }
 
   try {
@@ -337,6 +355,51 @@ export async function submitPublicInquiryFromForm(
       createdClientId = clientId;
     }
 
+    const newReservationWindow = reservationWindowFromProjectDates({
+      setup_starts_at: setupIso,
+      event_starts_at: eventStartIso,
+      event_ends_at: eventEndIso,
+      teardown_at: teardownIso,
+    });
+
+    if (clientId && newReservationWindow) {
+      const { data: siblingProjects } = await supabase
+        .from("projects")
+        .select("id, status, setup_starts_at, event_starts_at, event_ends_at, teardown_at")
+        .eq("client_id", clientId)
+        .neq("status", "closed");
+
+      for (const sib of siblingProjects ?? []) {
+        const row = sib as {
+          status: string;
+          setup_starts_at: string | null;
+          event_starts_at: string | null;
+          event_ends_at: string | null;
+          teardown_at: string | null;
+        };
+        if (String(row.status) === "closed") {
+          continue;
+        }
+        const otherWin = reservationWindowFromProjectDates({
+          setup_starts_at: row.setup_starts_at,
+          event_starts_at: row.event_starts_at,
+          event_ends_at: row.event_ends_at,
+          teardown_at: row.teardown_at,
+        });
+        const overlaps = otherWin === null || reservationWindowsOverlap(newReservationWindow, otherWin);
+        if (overlaps) {
+          if (createdClientId) {
+            await supabase.from("clients").delete().eq("id", createdClientId);
+          }
+          return {
+            success: false,
+            message:
+              "נראה שכבר קיימת פנייה או פרויקט דומה בתאריכים האלה לאותם פרטי קשר. אם מדובר בהזמנה נפרדת — פנו למשרד.",
+          };
+        }
+      }
+    }
+
     const { data: projectRow, error: projectErr } = await supabase
       .from("projects")
       .insert({
@@ -371,7 +434,9 @@ export async function submitPublicInquiryFromForm(
     const { error: siteErr } = await supabase.from("project_site_details").insert({
       project_id: projectId,
       access_notes: d.accessNotes || null,
-      cladding_color: d.claddingColor || null,
+      cladding_color: null,
+      carpet_cladding_color: d.carpetCladdingColor || null,
+      fabric_cladding_color: d.fabricCladdingColor || null,
       notes: d.notes || null,
       site_photo_paths: [],
       sketch_path: null,

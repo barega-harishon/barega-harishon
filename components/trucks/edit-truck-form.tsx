@@ -14,6 +14,7 @@ import {
 } from "@/types/trucks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 const selectClassName =
   "flex h-10 w-full rounded-[var(--radius)] border border-border bg-input px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -43,6 +44,18 @@ export function EditTruckForm({ truck, employeeOptions }: EditTruckFormProps) {
       <input name="id" type="hidden" value={truck.id} />
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5 sm:col-span-2">
+          <label className="text-sm font-medium" htmlFor="displayName">
+            שם תצוגה (אופציונלי)
+          </label>
+          <Input
+            defaultValue={truck.display_name ?? ""}
+            id="displayName"
+            name="displayName"
+            placeholder="למשל משאית צוות א׳"
+            type="text"
+          />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
           <label className="text-sm font-medium" htmlFor="licensePlate">
             מספר רישוי
           </label>
@@ -52,6 +65,18 @@ export function EditTruckForm({ truck, employeeOptions }: EditTruckFormProps) {
             name="licensePlate"
             required
             type="text"
+          />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <label className="text-sm font-medium" htmlFor="notes">
+            הערות פנימיות
+          </label>
+          <Textarea
+            defaultValue={truck.notes ?? ""}
+            id="notes"
+            name="notes"
+            placeholder="תחזוקה, מגבלות, הערות למשרד…"
+            rows={3}
           />
         </div>
         <div className="space-y-1.5 sm:col-span-2">

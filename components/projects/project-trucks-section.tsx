@@ -4,10 +4,10 @@ import { useActionState, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { addProjectTruckFromForm, removeProjectTruck } from "@/actions/project-trucks";
+import { addProjectTruckFromForm, removeProjectTruck, replaceProjectTruck } from "@/actions/project-trucks";
 import type { ActionResult } from "@/types/common";
 import type { ProjectTruckLine, TruckOptionForProject } from "@/types/project-trucks";
-import { normalizeTruckStatusForForm, TRUCK_STATUS_LABELS } from "@/types/trucks";
+import { normalizeTruckStatusForForm, TRUCK_STATUS_LABELS, truckDisplayLabel } from "@/types/trucks";
 import { Button } from "@/components/ui/button";
 
 const selectClassName =
@@ -28,6 +28,8 @@ export function ProjectTrucksSection({
 }: ProjectTrucksSectionProps) {
   const router = useRouter();
   const [removeError, setRemoveError] = useState<string | null>(null);
+  const [replaceError, setReplaceError] = useState<string | null>(null);
+  const [replacePick, setReplacePick] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
   const [addState, addAction, addPending] = useActionState(
     addProjectTruckFromForm,
@@ -52,6 +54,28 @@ export function ProjectTrucksSection({
     });
   }
 
+  function handleReplace(fromTruckId: string) {
+    const toTruckId = replacePick[fromTruckId]?.trim();
+    if (!toTruckId) {
+      setReplaceError("נא לבחור משאית להחלפה.");
+      return;
+    }
+    startTransition(async () => {
+      setReplaceError(null);
+      const result = await replaceProjectTruck({ projectId, fromTruckId, toTruckId });
+      if (result.success) {
+        setReplacePick((prev) => {
+          const next = { ...prev };
+          delete next[fromTruckId];
+          return next;
+        });
+        router.refresh();
+      } else {
+        setReplaceError(result.message);
+      }
+    });
+  }
+
   const selectable = options.filter((o) => !o.blockedReason);
   const hasAnyOption = options.length > 0;
 
@@ -60,6 +84,11 @@ export function ProjectTrucksSection({
       {removeError ? (
         <p className="text-sm text-destructive" role="alert">
           {removeError}
+        </p>
+      ) : null}
+      {replaceError ? (
+        <p className="text-sm text-destructive" role="alert">
+          {replaceError}
         </p>
       ) : null}
       {addState && !addState.success ? (
@@ -78,35 +107,76 @@ export function ProjectTrucksSection({
           <table className="w-full min-w-[32rem] border-collapse text-start text-sm">
             <thead className="border-b border-border bg-muted/50">
               <tr>
-                <th className="px-3 py-2 font-medium">רישוי</th>
+                <th className="px-3 py-2 font-medium">שם / רישוי</th>
                 <th className="px-3 py-2 font-medium">נהג</th>
                 <th className="px-3 py-2 font-medium">סטטוס משאית</th>
-                {canManage ? <th className="px-3 py-2 font-medium">פעולות</th> : null}
+                {canManage ? (
+                  <>
+                    <th className="px-3 py-2 font-medium">החלפה</th>
+                    <th className="px-3 py-2 font-medium">פעולות</th>
+                  </>
+                ) : null}
               </tr>
             </thead>
             <tbody>
               {lines.map((line) => {
                 const t = line.truck;
-                const plate = t?.license_plate ?? "—";
+                const label =
+                  t && t.license_plate
+                    ? `${truckDisplayLabel(t)} (${t.license_plate})`
+                    : "—";
                 const driver = t?.driver?.name ?? "—";
                 const st = t ? normalizeTruckStatusForForm(t.status) : "available";
                 return (
                   <tr className="border-b border-border last:border-0" key={line.truck_id}>
-                    <td className="px-3 py-2 font-medium">{plate}</td>
+                    <td className="px-3 py-2 font-medium">{label}</td>
                     <td className="px-3 py-2 text-muted-foreground">{driver}</td>
                     <td className="px-3 py-2">{TRUCK_STATUS_LABELS[st]}</td>
                     {canManage ? (
-                      <td className="px-3 py-2">
-                        <Button
-                          disabled={pending}
-                          onClick={() => handleRemove(line.truck_id)}
-                          size="sm"
-                          type="button"
-                          variant="outline"
-                        >
-                          הסרה
-                        </Button>
-                      </td>
+                      <>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <select
+                              aria-label="משאית חלופית"
+                              className={selectClassName}
+                              onChange={(e) =>
+                                setReplacePick((prev) => ({
+                                  ...prev,
+                                  [line.truck_id]: e.target.value,
+                                }))
+                              }
+                              value={replacePick[line.truck_id] ?? ""}
+                            >
+                              <option value="">בחרו משאית…</option>
+                              {selectable.map((o) => (
+                                <option key={o.id} value={o.id}>
+                                  {truckDisplayLabel(o)} ({o.license_plate})
+                                </option>
+                              ))}
+                            </select>
+                            <Button
+                              disabled={pending || selectable.length === 0}
+                              onClick={() => handleReplace(line.truck_id)}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              החלפה
+                            </Button>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <Button
+                            disabled={pending}
+                            onClick={() => handleRemove(line.truck_id)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            הסרה
+                          </Button>
+                        </td>
+                      </>
                     ) : null}
                   </tr>
                 );
@@ -144,7 +214,7 @@ export function ProjectTrucksSection({
                   <option value="">בחרו…</option>
                   {options.map((o) => (
                     <option disabled={Boolean(o.blockedReason)} key={o.id} value={o.id}>
-                      {o.license_plate}
+                      {truckDisplayLabel(o)} ({o.license_plate})
                       {o.blockedReason ? " (תפוסה בפרויקט אחר)" : ""}
                     </option>
                   ))}

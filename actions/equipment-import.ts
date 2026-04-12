@@ -8,6 +8,7 @@ import { getSafeClientErrorMessage, toServerError } from "@/lib/errors";
 import type { ActionResult } from "@/types/common";
 import { getCurrentAppRole } from "@/lib/auth/current-profile";
 import { isOfficeOrAdminRole } from "@/types/app-role";
+import { normalizeImportedEquipmentCategory } from "@/lib/equipment/equipment-categories";
 import { sanitizeText } from "@/utils/sanitize";
 
 type CsvRow = Record<string, string>;
@@ -60,6 +61,64 @@ function parseCsv(text: string): CsvRow[] {
 
 function normalizeHeader(value: string): string {
   return value.trim().toLowerCase();
+}
+
+/** מיפוי כותרות עברית/אנגלית לשמות שדה פנימיים (אחרי normalizeHeader על המפתח). */
+const IMPORT_KEY_ALIASES: Record<string, string> = (() => {
+  const raw: Record<string, string> = {
+    name: "name",
+    שם: "name",
+    "שם פריט": "name",
+    category: "category",
+    קטגוריה: "category",
+    total_qty: "total_qty",
+    "total qty": "total_qty",
+    כמות: "total_qty",
+    "כמות במלאי": "total_qty",
+    rent_price: "rent_price",
+    "rent price": "rent_price",
+    מחיר: "rent_price",
+    "מחיר השכרה": "rent_price",
+    warehouse_location: "warehouse_location",
+    "מיקום במחסן": "warehouse_location",
+    purchased_at: "purchased_at",
+    "תאריך רכישה": "purchased_at",
+    purchase_quantity: "purchase_quantity",
+    "כמות רכישה": "purchase_quantity",
+    unit_cost: "unit_cost",
+    "עלות יחידה": "unit_cost",
+    supplier_name: "supplier_name",
+    "שם ספק": "supplier_name",
+    reference_no: "reference_no",
+    "מספר הפניה": "reference_no",
+    note: "note",
+    הערה: "note",
+  };
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    out[normalizeHeader(k.replace(/[\u200e\u200f]/g, ""))] = v;
+  }
+  return out;
+})();
+
+function canonicalEquipmentImportRow(raw: CsvRow): CsvRow {
+  const out: CsvRow = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const nk = normalizeHeader(String(k).replace(/[\u200e\u200f]/g, ""));
+    const canon = IMPORT_KEY_ALIASES[nk] ?? nk;
+    const val = String(v ?? "").trim();
+    if (!val) {
+      continue;
+    }
+    if (!out[canon]) {
+      out[canon] = val;
+    }
+  }
+  return out;
+}
+
+function isCsvRowAllEmpty(raw: CsvRow): boolean {
+  return Object.values(raw).every((v) => !String(v ?? "").trim());
 }
 
 function parseXlsx(buffer: ArrayBuffer): CsvRow[] {
@@ -129,21 +188,30 @@ export async function importEquipmentFromCsvForm(
     } = await supabase.auth.getUser();
 
     let imported = 0;
-    for (const raw of rows) {
-      const parsed = rowSchema.safeParse(raw);
+    for (let i = 0; i < rows.length; i += 1) {
+      const raw = rows[i];
+      if (isCsvRowAllEmpty(raw)) {
+        continue;
+      }
+      const mapped = canonicalEquipmentImportRow(raw);
+      const parsed = rowSchema.safeParse(mapped);
       if (!parsed.success) {
+        const first = parsed.error.issues[0];
+        const spreadsheetRow = i + 2;
+        const hint = first?.path?.length ? ` (${String(first.path[0])})` : "";
         return {
           success: false,
-          message: `שורה לא תקינה בייבוא (שם פריט: ${raw.name || "לא ידוע"}).`,
+          message: `שורה ${spreadsheetRow} בקובץ לא תקינה${hint}: ${first?.message ?? "נתונים חסרים."}`,
         };
       }
       const d = parsed.data;
+      const categoryNorm = normalizeImportedEquipmentCategory(sanitizeText(d.category ?? ""));
 
       const { data: inserted, error: insErr } = await supabase
         .from("equipment")
         .insert({
           name: sanitizeText(d.name),
-          category: sanitizeText(d.category ?? ""),
+          category: categoryNorm,
           total_qty: d.total_qty,
           rent_price: d.rent_price,
           warehouse_location: d.warehouse_location ? sanitizeText(d.warehouse_location) : null,

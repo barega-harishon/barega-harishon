@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getEmployeeById, listEmployeeFileEvents } from "@/actions/employees";
+import { EmployeeAuthAccountSection } from "@/components/employees/employee-auth-account-section";
 import { EmployeeFileEventsList } from "@/components/employees/employee-file-events-list";
 import { EmployeeFilesCell, type EmployeeFileLink } from "@/components/employees/employee-files-cell";
 import { EmployeeFilesUploadForm } from "@/components/employees/employee-files-upload-form";
@@ -59,6 +60,7 @@ export default async function EmployeeDetailsPage({ params }: Props) {
   }
 
   const canManage = role === "admin" || role === "office" || role === "operations";
+  const canLinkAuthAccount = role === "admin" || role === "office";
   const [documents, licenses, events] = await Promise.all([
     toSignedLinks(row.documents_paths),
     toSignedLinks(row.licenses_paths),
@@ -110,6 +112,10 @@ export default async function EmployeeDetailsPage({ params }: Props) {
             </div>
           </div>
         </section>
+
+        {canLinkAuthAccount ? (
+          <EmployeeAuthAccountSection employeeId={row.id} linkedAuthUserId={row.auth_user_id} />
+        ) : null}
 
         <section className="space-y-4 rounded-[var(--radius)] border border-border bg-card p-4">
           <h2 className="text-base font-semibold">קבצים</h2>

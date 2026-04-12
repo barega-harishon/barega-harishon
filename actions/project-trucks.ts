@@ -42,6 +42,8 @@ export async function listProjectTruckLines(projectId: string): Promise<ProjectT
       truck:truck_id (
         id,
         license_plate,
+        display_name,
+        notes,
         status,
         driver_id,
         driver:driver_id ( id, name )
@@ -109,6 +111,7 @@ export async function listTruckOptionsForProject(projectId: string): Promise<Tru
     .map((t) => ({
       id: t.id,
       license_plate: t.license_plate,
+      display_name: t.display_name ?? "",
       blockedReason: blocked.get(t.id) ?? null,
     }));
 }
@@ -238,6 +241,103 @@ export async function removeProjectTruck(payload: unknown): Promise<ActionResult
     return { success: true, message: "שיבוץ המשאית הוסר." };
   } catch (error) {
     console.error("removeProjectTruck failed", toServerError(error));
+    return { success: false, message: getSafeClientErrorMessage() };
+  }
+}
+
+const replaceSchema = z
+  .object({
+    projectId: z.string().uuid(),
+    fromTruckId: z.string().uuid(),
+    toTruckId: z.string().uuid(),
+  })
+  .refine((d) => d.fromTruckId !== d.toTruckId, { message: "נא לבחור משאית אחרת להחלפה." });
+
+export async function replaceProjectTruck(payload: unknown): Promise<ActionResult<Record<string, never>>> {
+  const parsed = replaceSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { success: false, message: "בקשה לא תקינה." };
+  }
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, message: "נדרשת התחברות." };
+    }
+
+    const { data: proj, error: projErr } = await supabase
+      .from("projects")
+      .select("status")
+      .eq("id", parsed.data.projectId)
+      .maybeSingle();
+
+    if (projErr || !proj) {
+      return { success: false, message: "הפרויקט לא נמצא." };
+    }
+    if (String(proj.status) === "closed") {
+      return { success: false, message: "לא ניתן לשנות שיבוץ בפרויקט סגור." };
+    }
+
+    const { data: fromLink } = await supabase
+      .from("project_trucks")
+      .select("truck_id")
+      .eq("project_id", parsed.data.projectId)
+      .eq("truck_id", parsed.data.fromTruckId)
+      .maybeSingle();
+
+    if (!fromLink) {
+      return { success: false, message: "המשאית לא משובצת לפרויקט זה." };
+    }
+
+    const busy = await truckBlockedOnOtherActiveProject(
+      supabase,
+      parsed.data.toTruckId,
+      parsed.data.projectId,
+    );
+    if (busy) {
+      return {
+        success: false,
+        message: "לא ניתן להחליף: המשאית שנבחרה משובצת כבר לפרויקט פעיל אחר.",
+      };
+    }
+
+    const { error: delErr } = await supabase
+      .from("project_trucks")
+      .delete()
+      .eq("project_id", parsed.data.projectId)
+      .eq("truck_id", parsed.data.fromTruckId);
+
+    if (delErr) {
+      return { success: false, message: getSafeClientErrorMessage() };
+    }
+
+    const { error: insErr } = await supabase.from("project_trucks").insert({
+      project_id: parsed.data.projectId,
+      truck_id: parsed.data.toTruckId,
+    });
+
+    if (insErr) {
+      const { error: revertErr } = await supabase.from("project_trucks").insert({
+        project_id: parsed.data.projectId,
+        truck_id: parsed.data.fromTruckId,
+      });
+      if (revertErr) {
+        console.error("replaceProjectTruck revert failed", revertErr);
+      }
+      const code = (insErr as { code?: string }).code;
+      if (code === "23505") {
+        return { success: false, message: "המשאית כבר משובצת לפרויקט זה." };
+      }
+      return { success: false, message: getSafeClientErrorMessage() };
+    }
+
+    return { success: true, message: "שיבוץ המשאית הוחלף." };
+  } catch (error) {
+    console.error("replaceProjectTruck failed", toServerError(error));
     return { success: false, message: getSafeClientErrorMessage() };
   }
 }

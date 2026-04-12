@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getSafeClientErrorMessage, toServerError } from "@/lib/errors";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/types/common";
+import { zCladdingSwatchField } from "@/lib/inquiry/cladding-options";
 import { sanitizeText } from "@/utils/sanitize";
 
 const upsertSchema = z.object({
@@ -14,11 +15,8 @@ const upsertSchema = z.object({
     .max(2000, "דרכי גישה ארוכות מדי")
     .optional()
     .transform((v) => (v ? sanitizeText(v) : "")),
-  claddingColor: z
-    .string()
-    .max(200, "צבע חיפוי ארוך מדי")
-    .optional()
-    .transform((v) => (v ? sanitizeText(v) : "")),
+  carpetCladdingColor: zCladdingSwatchField,
+  fabricCladdingColor: zCladdingSwatchField,
   notes: z
     .string()
     .max(2000, "הערות ארוכות מדי")
@@ -76,7 +74,9 @@ export async function upsertProjectSiteDetails(
         {
           project_id: parsed.data.projectId,
           access_notes: parsed.data.accessNotes || null,
-          cladding_color: parsed.data.claddingColor || null,
+          cladding_color: null,
+          carpet_cladding_color: parsed.data.carpetCladdingColor || null,
+          fabric_cladding_color: parsed.data.fabricCladdingColor || null,
           notes: parsed.data.notes || null,
           sketch_path: sketchPath,
           site_photo_paths: sitePhotoPaths,
@@ -137,7 +137,7 @@ export async function setProjectSitePhotoPathsRaw(
     const { data: row } = await supabase
       .from("project_site_details")
       .select(
-        "access_notes, cladding_color, notes, sketch_path, site_photo_paths, submitted_by_client",
+        "access_notes, cladding_color, carpet_cladding_color, fabric_cladding_color, notes, sketch_path, site_photo_paths, submitted_by_client",
       )
       .eq("project_id", idParsed.data)
       .maybeSingle();
@@ -147,6 +147,8 @@ export async function setProjectSitePhotoPathsRaw(
         project_id: idParsed.data,
         access_notes: row?.access_notes ?? null,
         cladding_color: row?.cladding_color ?? null,
+        carpet_cladding_color: row?.carpet_cladding_color ?? null,
+        fabric_cladding_color: row?.fabric_cladding_color ?? null,
         notes: row?.notes ?? null,
         sketch_path: row?.sketch_path ?? null,
         site_photo_paths: paths,
@@ -179,7 +181,8 @@ export async function upsertProjectSiteDetailsFromForm(
   return upsertProjectSiteDetails({
     projectId: formData.get("projectId"),
     accessNotes: formData.get("accessNotes"),
-    claddingColor: formData.get("claddingColor"),
+    carpetCladdingColor: formData.get("carpetCladdingColor"),
+    fabricCladdingColor: formData.get("fabricCladdingColor"),
     notes: formData.get("notes"),
     submittedByClient: formData.get("submittedByClient"),
   });

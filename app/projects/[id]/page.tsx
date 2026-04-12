@@ -22,6 +22,7 @@ import { ProjectTrucksSection } from "@/components/projects/project-trucks-secti
 import { ProjectMediaSection } from "@/components/projects/project-media-section";
 import { ProjectPaymentsSection } from "@/components/projects/project-payments-section";
 import { ProjectQuoteActions } from "@/components/projects/project-quote-actions";
+import { ProjectCoreDetailsForm } from "@/components/projects/project-core-details-form";
 import { ProjectSiteDetailsForm } from "@/components/projects/project-site-details-form";
 import { FieldProjectStatusForm } from "@/components/field/field-project-status-form";
 import { ProjectStatusForm } from "@/components/projects/project-status-form";
@@ -200,6 +201,7 @@ export default async function ProjectDetailPage({
               <span className="text-muted-foreground">פירוק</span>
               <span className="text-end">{formatDateTimeByPreference(project.teardown_at, dateStyle)}</span>
             </div>
+            {canEditPricing ? <ProjectCoreDetailsForm project={project} /> : null}
             <ProjectQuoteActions
               projectId={project.id}
               showEmail={showPayments && Boolean(process.env.RESEND_API_KEY?.trim())}
@@ -236,7 +238,7 @@ export default async function ProjectDetailPage({
           <CardHeader>
             <CardTitle>פרטי אתר (טופס לקוח / שטח)</CardTitle>
             <CardDescription>
-              דרכי גישה, צבע חיפוי והערות. תמונות וסקיצה — בסעיף המדיה למטה.
+              דרכי גישה, צבעי חיפוי (שטיח ובד) והערות. תמונות וסקיצה — בסעיף המדיה למטה.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-8">
