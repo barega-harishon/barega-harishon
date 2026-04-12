@@ -12,9 +12,11 @@ const selectClassName =
 
 interface InviteUserWithRoleFormProps {
   defaultAppRole: AppRole;
+  /** מילוי מראש (למשל מקישור מכרטיס עובד) */
+  initialEmail?: string | null;
 }
 
-export function InviteUserWithRoleForm({ defaultAppRole }: InviteUserWithRoleFormProps) {
+export function InviteUserWithRoleForm({ defaultAppRole, initialEmail }: InviteUserWithRoleFormProps) {
   const [state, formAction, isPending] = useActionState(inviteUserWithRoleFromForm, null);
 
   return (
@@ -23,7 +25,15 @@ export function InviteUserWithRoleForm({ defaultAppRole }: InviteUserWithRoleFor
         <label className="block text-sm font-medium text-foreground" htmlFor="invite-email">
           דוא״ל להזמנה
         </label>
-        <Input autoComplete="email" id="invite-email" name="email" required type="email" />
+        <Input
+          autoComplete="email"
+          defaultValue={initialEmail?.trim() ?? ""}
+          id="invite-email"
+          key={initialEmail?.trim() ?? ""}
+          name="email"
+          required
+          type="email"
+        />
       </div>
       <div className="space-y-1.5">
         <label className="block text-sm font-medium text-foreground" htmlFor="invite-app-role">

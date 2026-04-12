@@ -23,8 +23,8 @@ export function NewEmployeeForm() {
   );
 
   useEffect(() => {
-    if (state?.success) {
-      router.refresh();
+    if (state?.success && state.data?.id) {
+      router.replace(`/employees/${state.data.id}?setup=auth`);
     }
   }, [state, router]);
 

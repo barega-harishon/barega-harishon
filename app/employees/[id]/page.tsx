@@ -16,6 +16,7 @@ import { formatCurrencyIl } from "@/utils/money";
 
 type Props = {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ setup?: string | string[] }>;
 };
 
 function displayFileNameFromPath(path: string): string {
@@ -48,8 +49,13 @@ async function toSignedLinks(paths: string[] | null | undefined): Promise<Employ
   return links.filter((v): v is EmployeeFileLink => v !== null);
 }
 
-export default async function EmployeeDetailsPage({ params }: Props) {
+export default async function EmployeeDetailsPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const sp = searchParams ? await searchParams : {};
+  const setupRaw = sp.setup;
+  const setup = Array.isArray(setupRaw) ? setupRaw[0] : setupRaw;
+  const highlightAuthSetup = setup === "auth";
+
   const [row, role, dateStyle] = await Promise.all([
     getEmployeeById(id),
     getCurrentAppRole(),
@@ -61,6 +67,8 @@ export default async function EmployeeDetailsPage({ params }: Props) {
 
   const canManage = role === "admin" || role === "office" || role === "operations";
   const canLinkAuthAccount = role === "admin" || role === "office";
+  const isAdmin = role === "admin";
+  const showAdminInviteLink = isAdmin && Boolean(row.email?.trim()) && !row.auth_user_id;
   const [documents, licenses, events] = await Promise.all([
     toSignedLinks(row.documents_paths),
     toSignedLinks(row.licenses_paths),
@@ -80,6 +88,22 @@ export default async function EmployeeDetailsPage({ params }: Props) {
           <Link href="/employees">חזרה לצוות</Link>
         </Button>
       </div>
+
+      {highlightAuthSetup && !canLinkAuthAccount ? (
+        <div
+          className="mb-6 rounded-[var(--radius)] border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-foreground"
+          role="status"
+        >
+          <p className="font-medium">המשך להגדרת חשבון התחברות (שטח)</p>
+          <p className="mt-1 text-muted-foreground">
+            קישור חשבון Auth לעובד זה מבוצע על ידי משתמש עם תפקיד משרד או אדמין. פנו למשרד או היכנסו כאדמין
+            להזמנת משתמש חדש, ואז חזרו לכאן לקישור.
+          </p>
+          <Button asChild className="mt-3" size="sm" variant="outline">
+            <Link href="/employees">חזרה לרשימת הצוות</Link>
+          </Button>
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-[var(--radius)] border border-border bg-card p-4">
@@ -114,7 +138,13 @@ export default async function EmployeeDetailsPage({ params }: Props) {
         </section>
 
         {canLinkAuthAccount ? (
-          <EmployeeAuthAccountSection employeeId={row.id} linkedAuthUserId={row.auth_user_id} />
+          <EmployeeAuthAccountSection
+            defaultEmail={row.email}
+            employeeId={row.id}
+            highlightAuthSetup={highlightAuthSetup}
+            linkedAuthUserId={row.auth_user_id}
+            showAdminInviteLink={showAdminInviteLink}
+          />
         ) : null}
 
         <section className="space-y-4 rounded-[var(--radius)] border border-border bg-card p-4">

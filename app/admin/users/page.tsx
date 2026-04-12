@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import { listAdminUserRows } from "@/actions/admin-users";
 import { InviteUserWithRoleForm } from "@/components/admin/invite-user-with-role-form";
@@ -28,7 +29,24 @@ function formatWhen(iso: string, dateStyle: DateStylePreference): string {
   return formatDateTimeByPreference(iso, dateStyle);
 }
 
-export default async function AdminUsersPage() {
+function parseInviteEmailParam(raw: string | string[] | undefined): string | undefined {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof v !== "string") {
+    return undefined;
+  }
+  const t = v.trim();
+  const parsed = z.string().email().safeParse(t);
+  return parsed.success ? parsed.data : undefined;
+}
+
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ inviteEmail?: string | string[] }>;
+}) {
+  const sp = searchParams ? await searchParams : {};
+  const inviteEmailPrefill = parseInviteEmailParam(sp.inviteEmail);
+
   const [role, dateStyle] = await Promise.all([getCurrentAppRole(), getDateStylePreference()]);
   if (role !== "admin") {
     redirect("/dashboard");
@@ -63,7 +81,7 @@ export default async function AdminUsersPage() {
         </CardHeader>
         <CardContent>
           {inviteOk ? (
-            <InviteUserWithRoleForm defaultAppRole="office" />
+            <InviteUserWithRoleForm defaultAppRole="office" initialEmail={inviteEmailPrefill} />
           ) : (
             <p className="text-sm text-muted-foreground">
               שליחת הזמנה דורשת <span className="font-mono">SUPABASE_SERVICE_ROLE_KEY</span> בסביבת השרת.
