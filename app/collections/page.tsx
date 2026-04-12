@@ -11,15 +11,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { isOfficeOrAdminRole } from "@/types/app-role";
 import { formatCurrencyIl } from "@/utils/money";
 
 export const dynamic = "force-dynamic";
 
 export default async function CollectionsPage() {
-  const role = await getCurrentAppRole();
-  if (!isOfficeOrAdminRole(role)) {
+  const roles = await getCurrentAppRoles();
+  if (!isOfficeOrAdminRole(roles)) {
     redirect("/dashboard");
   }
 

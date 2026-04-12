@@ -10,16 +10,47 @@ export const APP_ROLE_LABELS_HE: Record<AppRole, string> = {
   field: "שטח",
 };
 
-export function isOfficeOrAdminRole(role: AppRole | null): role is "admin" | "office" {
-  return role === "admin" || role === "office";
+function asRoleArray(role: AppRole | AppRole[] | null | undefined): AppRole[] {
+  if (role === null || role === undefined) {
+    return [];
+  }
+  return Array.isArray(role) ? role : [role];
 }
 
-export function isFieldRole(role: AppRole | null): boolean {
-  return role === "field";
+/** האם יש למשתמש לפחות אחד מהתפקידים ברשימה (תפקיד יחיד או איחוד תפקידים). */
+export function hasAnyAppRole(
+  role: AppRole | AppRole[] | null | undefined,
+  allowed: readonly AppRole[],
+): boolean {
+  return asRoleArray(role).some((r) => allowed.includes(r));
 }
 
-export function isAdminRole(role: AppRole | null): role is "admin" {
-  return role === "admin";
+/** איחוד תפקיד ראשי ותפקידים נוספים ללא כפילויות (הראשי תמיד ראשון). */
+export function mergePrimaryAndExtraRoles(primary: AppRole, extras: AppRole[]): AppRole[] {
+  const seen = new Set<AppRole>([primary]);
+  const out: AppRole[] = [primary];
+  for (const e of extras) {
+    if (e === primary) {
+      continue;
+    }
+    if (!seen.has(e)) {
+      seen.add(e);
+      out.push(e);
+    }
+  }
+  return out;
+}
+
+export function isOfficeOrAdminRole(role: AppRole | AppRole[] | null): boolean {
+  return hasAnyAppRole(role, ["admin", "office"]);
+}
+
+export function isFieldRole(role: AppRole | AppRole[] | null): boolean {
+  return hasAnyAppRole(role, ["field"]);
+}
+
+export function isAdminRole(role: AppRole | AppRole[] | null): boolean {
+  return hasAnyAppRole(role, ["admin"]);
 }
 
 export function parseAppRole(value: string): AppRole | null {
@@ -29,4 +60,19 @@ export function parseAppRole(value: string): AppRole | null {
     }
   }
   return null;
+}
+
+/** מערך תפקידים מ־Postgres (enum[] / מחרוזות). */
+export function parseAppRoleArray(value: unknown): AppRole[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const out: AppRole[] = [];
+  for (const item of value) {
+    const r = parseAppRole(String(item));
+    if (r) {
+      out.push(r);
+    }
+  }
+  return out;
 }

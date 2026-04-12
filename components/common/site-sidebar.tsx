@@ -43,13 +43,13 @@ function renderNavItem(item: NavDrawerItem, pathname: string) {
 
 export function SiteSidebar({
   items,
-  role,
+  roles,
 }: {
   items: NavDrawerItem[];
-  role: AppRole | null;
+  roles: AppRole[];
 }) {
   const pathname = usePathname();
-  const isAdmin = role === "admin";
+  const isAdmin = roles.includes("admin");
   const orphanNavItems = isAdmin ? adminSidebarOrphanNavItems(items) : [];
 
   return (

@@ -14,7 +14,7 @@ import {
   type PipelineStatusRow,
   type ReceivablesKpi,
 } from "@/lib/reports/business-queries";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { isOfficeOrAdminRole } from "@/types/app-role";
 
 export type BusinessReportsBundle = {
@@ -37,8 +37,8 @@ function clampYear(y: number): number {
 
 /** נתונים למסך דוחות עסקיים — רק משרד/אדמין */
 export async function getBusinessReportsBundle(yearInput: number): Promise<BusinessReportsBundle | null> {
-  const role = await getCurrentAppRole();
-  if (!isOfficeOrAdminRole(role)) {
+  const roles = await getCurrentAppRoles();
+  if (!isOfficeOrAdminRole(roles)) {
     return null;
   }
 

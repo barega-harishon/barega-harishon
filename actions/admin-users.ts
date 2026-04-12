@@ -3,18 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { getSafeClientErrorMessage } from "@/lib/errors";
 import { hasServiceRoleKey, createServiceRoleSupabaseClient } from "@/lib/supabase/service-role";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/types/common";
-import { APP_ROLE_OPTIONS, parseAppRole, type AppRole } from "@/types/app-role";
+import { APP_ROLE_OPTIONS, parseAppRole, parseAppRoleArray, type AppRole } from "@/types/app-role";
 import { normalizeEmail } from "@/utils/sanitize";
 
 export type AdminUserListRow = {
   profileId: string;
   fullName: string;
   role: AppRole;
+  extraRoles: AppRole[];
   createdAt: string;
   email: string | null;
 };
@@ -58,15 +59,15 @@ export async function listAdminUserRows(): Promise<{
   loadError: string | null;
   emailsNote: string | null;
 }> {
-  const role = await getCurrentAppRole();
-  if (role !== "admin") {
+  const roles = await getCurrentAppRoles();
+  if (!roles.includes("admin")) {
     return { rows: [], loadError: "אין הרשאה.", emailsNote: null };
   }
 
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, role, created_at")
+    .select("id, full_name, role, extra_roles, created_at")
     .order("created_at", { ascending: false });
 
   if (error || !data) {
@@ -86,10 +87,12 @@ export async function listAdminUserRows(): Promise<{
   const rows: AdminUserListRow[] = data.map((row) => {
     const id = row.id as string;
     const r = parseAppRole(String(row.role ?? ""));
+    const extras = parseAppRoleArray((row as { extra_roles?: unknown }).extra_roles);
     return {
       profileId: id,
       fullName: typeof row.full_name === "string" ? row.full_name : "",
       role: r ?? "field",
+      extraRoles: extras,
       createdAt: typeof row.created_at === "string" ? row.created_at : "",
       email: emailsById.get(id) ?? null,
     };
@@ -107,10 +110,13 @@ export async function updateAdminProfileRoleFromForm(
   _prev: ActionResult<null> | null,
   formData: FormData,
 ): Promise<ActionResult<null> | null> {
-  const role = await getCurrentAppRole();
-  if (role !== "admin") {
+  const actorRoles = await getCurrentAppRoles();
+  if (!actorRoles.includes("admin")) {
     return { success: false, message: "אין הרשאה לעדכון תפקידים." };
   }
+
+  const extraRaw = formData.getAll("extraRoles").map((v) => String(v));
+  const extraParsed = extraRaw.map(parseAppRole).filter((x): x is AppRole => x !== null);
 
   const parsed = updateRoleSchema.safeParse({
     profileId: formData.get("profileId"),
@@ -120,6 +126,9 @@ export async function updateAdminProfileRoleFromForm(
     return { success: false, message: "נתונים לא תקינים." };
   }
 
+  const primary = parsed.data.role;
+  const extraRoles = [...new Set(extraParsed)].filter((r) => r !== primary);
+
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -128,17 +137,28 @@ export async function updateAdminProfileRoleFromForm(
     return { success: false, message: "נדרשת התחברות." };
   }
 
-  if (user.id === parsed.data.profileId && parsed.data.role !== "admin") {
-    return {
-      success: false,
-      message: "לא ניתן להסיר מעצמכם את תפקיד האדמין.",
-    };
+  if (user.id === parsed.data.profileId) {
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("role, extra_roles")
+      .eq("id", user.id)
+      .maybeSingle();
+    const prevPrimary = parseAppRole(String(existing?.role ?? "")) ?? "field";
+    const prevExtras = parseAppRoleArray((existing as { extra_roles?: unknown } | null)?.extra_roles);
+    const hadAdmin = prevPrimary === "admin" || prevExtras.includes("admin");
+    const willAdmin = primary === "admin" || extraRoles.includes("admin");
+    if (hadAdmin && !willAdmin) {
+      return {
+        success: false,
+        message: "לא ניתן להסיר מעצמכם את תפקיד האדמין.",
+      };
+    }
   }
 
   try {
     const { error } = await supabase
       .from("profiles")
-      .update({ role: parsed.data.role })
+      .update({ role: primary, extra_roles: extraRoles })
       .eq("id", parsed.data.profileId);
 
     if (error) {
@@ -147,7 +167,7 @@ export async function updateAdminProfileRoleFromForm(
     }
 
     revalidatePath("/admin/users");
-    return { success: true, message: "התפקיד עודכן." };
+    return { success: true, message: "התפקידים עודכנו." };
   } catch (e) {
     console.error("updateAdminProfileRoleFromForm exception", e);
     return { success: false, message: getSafeClientErrorMessage() };
@@ -167,8 +187,8 @@ export async function inviteUserWithRoleFromForm(
   _prev: ActionResult<null> | null,
   formData: FormData,
 ): Promise<ActionResult<null> | null> {
-  const role = await getCurrentAppRole();
-  if (role !== "admin") {
+  const actorRoles = await getCurrentAppRoles();
+  if (!actorRoles.includes("admin")) {
     return { success: false, message: "אין הרשאה." };
   }
   if (!hasServiceRoleKey()) {
@@ -207,7 +227,7 @@ export async function inviteUserWithRoleFromForm(
       }
       const { error: profileErr } = await admin
         .from("profiles")
-        .update({ role: parsed.data.appRole })
+        .update({ role: parsed.data.appRole, extra_roles: [] })
         .eq("id", newUserId);
       if (profileErr) {
         console.error("inviteUserWithRole profiles update failed", profileErr);

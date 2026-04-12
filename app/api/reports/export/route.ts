@@ -8,7 +8,7 @@ import {
   queryPipelineByStatus,
   queryReceivablesKpi,
 } from "@/lib/reports/business-queries";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { isOfficeOrAdminRole } from "@/types/app-role";
 import { PROJECT_STATUS_LABELS } from "@/types/projects";
 import { buildCsvRow } from "@/utils/csv";
@@ -24,8 +24,8 @@ function clampYear(y: number): number {
 }
 
 export async function GET(request: NextRequest) {
-  const role = await getCurrentAppRole();
-  if (!isOfficeOrAdminRole(role)) {
+  const roles = await getCurrentAppRoles();
+  if (!isOfficeOrAdminRole(roles)) {
     return new Response("אין הרשאה לייצוא דוחות.", {
       status: 403,
       headers: { "Content-Type": "text/plain; charset=utf-8" },

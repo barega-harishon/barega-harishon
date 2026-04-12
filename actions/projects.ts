@@ -3,9 +3,9 @@
 import { z } from "zod";
 
 import { getSafeClientErrorMessage, toServerError } from "@/lib/errors";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { isOfficeOrAdminRole } from "@/types/app-role";
+import { hasAnyAppRole, isOfficeOrAdminRole } from "@/types/app-role";
 import type { ActionResult } from "@/types/common";
 import type { CalendarProjectRow } from "@/types/calendar";
 import type { AppRole } from "@/types/app-role";
@@ -93,8 +93,8 @@ export async function listProjects(
   filter?: { status?: ProjectStatus; clientId?: string; search?: string },
 ): Promise<ProjectListRow[]> {
   const supabase = await createServerSupabaseClient();
-  const role = await getCurrentAppRole();
-  const canSeeIncoming = isOfficeOrAdminRole(role);
+  const roles = await getCurrentAppRoles();
+  const canSeeIncoming = isOfficeOrAdminRole(roles);
   if (filter?.status === "incoming" && !canSeeIncoming) {
     return [];
   }
@@ -221,8 +221,8 @@ export async function getProjectById(id: string): Promise<ProjectDetailRow | nul
       null;
   }
 
-  const role = await getCurrentAppRole();
-  const canSeeIncoming = isOfficeOrAdminRole(role);
+  const roles = await getCurrentAppRoles();
+  const canSeeIncoming = isOfficeOrAdminRole(roles);
   const typed = row as ProjectDetailRow;
   if (typed.status === "incoming" && !canSeeIncoming) {
     return null;
@@ -297,8 +297,8 @@ export async function createProjectFromForm(
   });
 }
 
-function canEditProjectCoreDetails(role: AppRole | null): boolean {
-  return role === "admin" || role === "office" || role === "operations";
+function canEditProjectCoreDetails(roles: AppRole[]): boolean {
+  return hasAnyAppRole(roles, ["admin", "office", "operations"]);
 }
 
 const updateProjectCoreSchema = z
@@ -370,8 +370,8 @@ export async function updateProjectCore(
   }
 
   try {
-    const role = await getCurrentAppRole();
-    if (!canEditProjectCoreDetails(role)) {
+    const roles = await getCurrentAppRoles();
+    if (!canEditProjectCoreDetails(roles)) {
       return { success: false, message: "אין הרשאה לעדכן פרטי פרויקט." };
     }
 
@@ -484,8 +484,8 @@ export async function updateProjectStatus(
   }
 
   try {
-    const role = await getCurrentAppRole();
-    if (parsed.data.status === "incoming" && !isOfficeOrAdminRole(role)) {
+    const roles = await getCurrentAppRoles();
+    if (parsed.data.status === "incoming" && !isOfficeOrAdminRole(roles)) {
       return { success: false, message: "אין הרשאה להעביר לסטטוס בקשה נכנסת." };
     }
     const supabase = await createServerSupabaseClient();
@@ -518,8 +518,8 @@ export async function approveIncomingProjectRequest(
   }
 
   try {
-    const role = await getCurrentAppRole();
-    if (!isOfficeOrAdminRole(role)) {
+    const roles = await getCurrentAppRoles();
+    if (!isOfficeOrAdminRole(roles)) {
       return { success: false, message: "אין הרשאה לאשר בקשות נכנסות." };
     }
 
@@ -606,8 +606,8 @@ export async function listProjectsForCalendarMonth(
   const endIso = end.toISOString();
 
   const supabase = await createServerSupabaseClient();
-  const role = await getCurrentAppRole();
-  const canSeeIncoming = isOfficeOrAdminRole(role);
+  const roles = await getCurrentAppRoles();
+  const canSeeIncoming = isOfficeOrAdminRole(roles);
 
   const select = `
     id,

@@ -1,9 +1,21 @@
 import "server-only";
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import type { AppRole } from "@/types/app-role";
+import {
+  mergePrimaryAndExtraRoles,
+  parseAppRole,
+  parseAppRoleArray,
+  type AppRole,
+} from "@/types/app-role";
 
-export async function getCurrentAppRole(): Promise<AppRole | null> {
+export type CurrentProfileAuthRoles = {
+  /** תפקיד ראשי (profiles.role) — מוצג בהזמנות Auth וכברירת מחדל */
+  primaryRole: AppRole;
+  /** איחוד תפקיד ראשי + extra_roles */
+  roles: AppRole[];
+};
+
+export async function getCurrentProfileAuthRoles(): Promise<CurrentProfileAuthRoles | null> {
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -15,7 +27,7 @@ export async function getCurrentAppRole(): Promise<AppRole | null> {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, extra_roles")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -23,5 +35,20 @@ export async function getCurrentAppRole(): Promise<AppRole | null> {
     return null;
   }
 
-  return data.role as AppRole;
+  const primary = parseAppRole(String(data.role)) ?? "field";
+  const extras = parseAppRoleArray(data.extra_roles);
+  const roles = mergePrimaryAndExtraRoles(primary, extras);
+  return { primaryRole: primary, roles };
+}
+
+/** תפקיד ראשי בלבד (לתצוגה / מטא־דאטה). */
+export async function getCurrentAppRole(): Promise<AppRole | null> {
+  const ctx = await getCurrentProfileAuthRoles();
+  return ctx?.primaryRole ?? null;
+}
+
+/** כל התפקידים הפעילים (ראשי + נוספים) — לבדיקות הרשאה. */
+export async function getCurrentAppRoles(): Promise<AppRole[]> {
+  const ctx = await getCurrentProfileAuthRoles();
+  return ctx?.roles ?? [];
 }

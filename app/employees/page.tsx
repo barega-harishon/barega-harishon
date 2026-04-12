@@ -8,11 +8,12 @@ import {
 } from "@/components/employees/employee-files-cell";
 import { NewEmployeeForm } from "@/components/employees/new-employee-form";
 import { Button } from "@/components/ui/button";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { EMPLOYEE_FILES_BUCKET } from "@/lib/storage/buckets";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { EmployeeType } from "@/types/employees";
 import { EMPLOYEE_TYPE_LABELS } from "@/types/employees";
+import { hasAnyAppRole } from "@/types/app-role";
 import { formatCurrencyIl } from "@/utils/money";
 
 export const dynamic = "force-dynamic";
@@ -31,12 +32,11 @@ function displayFileNameFromPath(path: string): string {
 }
 
 export default async function EmployeesPage() {
-  const [{ rows, loadError }, role] = await Promise.all([
+  const [{ rows, loadError }, roles] = await Promise.all([
     listEmployeesWithHealth(),
-    getCurrentAppRole(),
+    getCurrentAppRoles(),
   ]);
-  const canManage =
-    role === "admin" || role === "office" || role === "operations";
+  const canManage = hasAnyAppRole(roles, ["admin", "office", "operations"]);
   const canSeeFiles = canManage;
 
   let fileLinksByEmployee = new Map<string, { documents: EmployeeFileLink[]; licenses: EmployeeFileLink[] }>();

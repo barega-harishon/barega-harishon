@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { getDateStylePreference } from "@/lib/date-style-server";
 import { isOfficeOrAdminRole } from "@/types/app-role";
 import type { ProjectStatus } from "@/types/projects";
@@ -40,9 +40,9 @@ export default async function ClientDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [client, role, dateStyle] = await Promise.all([
+  const [client, roles, dateStyle] = await Promise.all([
     getClientById(id),
-    getCurrentAppRole(),
+    getCurrentAppRoles(),
     getDateStylePreference(),
   ]);
 
@@ -51,7 +51,7 @@ export default async function ClientDetailPage({
   }
 
   const projects = await listProjects({ clientId: client.id });
-  const canEdit = isOfficeOrAdminRole(role);
+  const canEdit = isOfficeOrAdminRole(roles);
 
   return (
     <main className="container-page py-8">

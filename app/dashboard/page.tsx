@@ -17,18 +17,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { getDateStylePreference } from "@/lib/date-style-server";
-import { isOfficeOrAdminRole } from "@/types/app-role";
+import { hasAnyAppRole, isOfficeOrAdminRole } from "@/types/app-role";
 import { formatDateTimeByPreference } from "@/utils/date";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [role, dateStyle] = await Promise.all([getCurrentAppRole(), getDateStylePreference()]);
-  const showFinance = isOfficeOrAdminRole(role);
-  const canManageTeam =
-    role === "admin" || role === "office" || role === "operations";
+  const [roles, dateStyle] = await Promise.all([getCurrentAppRoles(), getDateStylePreference()]);
+  const showFinance = isOfficeOrAdminRole(roles);
+  const canManageTeam = hasAnyAppRole(roles, ["admin", "office", "operations"]);
 
   const [statusRows, upcoming, lowStock, monthlyPayments] = await Promise.all([
     getDashboardStatusCounts(),

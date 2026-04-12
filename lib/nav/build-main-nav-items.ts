@@ -1,17 +1,19 @@
 import type { NavDrawerItem } from "@/lib/nav/nav-types";
 import type { AppRole } from "@/types/app-role";
-import { isAdminRole, isFieldRole, isOfficeOrAdminRole } from "@/types/app-role";
+import { hasAnyAppRole, isAdminRole, isFieldRole, isOfficeOrAdminRole } from "@/types/app-role";
 
-export function buildMainNavItems(role: AppRole | null): NavDrawerItem[] {
-  const isField = isFieldRole(role);
-  const showCollections = isOfficeOrAdminRole(role);
-  const canManageProjects = role === "admin" || role === "office" || role === "operations";
+export function buildMainNavItems(roles: AppRole[] | null): NavDrawerItem[] {
+  const r = roles ?? [];
+  const isField = isFieldRole(r);
+  const showCollections = isOfficeOrAdminRole(r);
+  const canManageProjects = hasAnyAppRole(r, ["admin", "office", "operations"]);
   const canCreateProject = canManageProjects;
-  const canManageTeam = role === "admin" || role === "office" || role === "operations";
-  const canManageTrucks = role === "admin" || role === "operations" || role === "warehouse";
-  const canSeeClients = role === "admin" || role === "office" || role === "operations";
-  const canSeeEquipment = role !== "field";
-  const canUseFieldArea = isField || role === "admin" || role === "office" || role === "operations";
+  const canManageTeam = hasAnyAppRole(r, ["admin", "office", "operations"]);
+  const canManageTrucks = hasAnyAppRole(r, ["admin", "operations", "warehouse"]);
+  const canSeeClients = hasAnyAppRole(r, ["admin", "office", "operations"]);
+  const canSeeEquipment = hasAnyAppRole(r, ["admin", "office", "operations", "warehouse"]);
+  const canUseFieldArea =
+    isField || hasAnyAppRole(r, ["admin", "office", "operations"]);
 
   const items: NavDrawerItem[] = [
     { href: "/dashboard", label: "דשבורד" },
@@ -53,8 +55,9 @@ export function buildMainNavItems(role: AppRole | null): NavDrawerItem[] {
     items.push({ href: "/collections", label: "גבייה", dividerBefore: true });
     items.push({ href: "/reports", label: "דוחות" });
   }
-  if (isAdminRole(role)) {
+  if (isAdminRole(r)) {
     items.push({ href: "/admin/users", label: "משתמשים", dividerBefore: true });
+    items.push({ href: "/admin/permissions", label: "הרשאות" });
   }
   return items;
 }

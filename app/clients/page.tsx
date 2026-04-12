@@ -4,7 +4,7 @@ import { listClientsWithProjectStats } from "@/actions/clients";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { isOfficeOrAdminRole } from "@/types/app-role";
 
 export const dynamic = "force-dynamic";
@@ -27,11 +27,11 @@ export default async function ClientsPage({
   const searchForList =
     searchInput && searchInput.replace(/[%_,]/g, "").trim().length >= 2 ? searchInput : undefined;
 
-  const [rows, role] = await Promise.all([
+  const [rows, roles] = await Promise.all([
     listClientsWithProjectStats(searchForList ? { search: searchForList } : undefined),
-    getCurrentAppRole(),
+    getCurrentAppRoles(),
   ]);
-  const canCreate = isOfficeOrAdminRole(role);
+  const canCreate = isOfficeOrAdminRole(roles);
 
   return (
     <main className="container-page py-8">

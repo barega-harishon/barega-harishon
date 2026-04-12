@@ -4,21 +4,20 @@ import { listProjects } from "@/actions/projects";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { ProjectKanbanBoard } from "@/components/projects/project-kanban-board";
 import { Button } from "@/components/ui/button";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { getDateStylePreference } from "@/lib/date-style-server";
-import { isOfficeOrAdminRole } from "@/types/app-role";
+import { hasAnyAppRole, isOfficeOrAdminRole } from "@/types/app-role";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjectsKanbanPage() {
-  const [rows, role, dateStyle] = await Promise.all([
+  const [rows, roles, dateStyle] = await Promise.all([
     listProjects(),
-    getCurrentAppRole(),
+    getCurrentAppRoles(),
     getDateStylePreference(),
   ]);
-  const canChangeStatus =
-    role === "admin" || role === "office" || role === "operations";
-  const allowIncomingStatus = isOfficeOrAdminRole(role);
+  const canChangeStatus = hasAnyAppRole(roles, ["admin", "office", "operations"]);
+  const allowIncomingStatus = isOfficeOrAdminRole(roles);
 
   return (
     <main className="container-page py-8">

@@ -5,7 +5,7 @@ import { getClientNameById } from "@/actions/clients";
 import { listProjects } from "@/actions/projects";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { Button } from "@/components/ui/button";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { Input } from "@/components/ui/input";
 import { ProjectStatusBadge } from "@/components/projects/project-status-badge";
 import { getDateStylePreference } from "@/lib/date-style-server";
@@ -65,7 +65,7 @@ export default async function ProjectsPage({
   const searchForList =
     searchInput && searchInput.replace(/[%_,]/g, "").trim().length >= 2 ? searchInput : undefined;
 
-  const [rows, clientLabel, dateStyle, role] = await Promise.all([
+  const [rows, clientLabel, dateStyle, roles] = await Promise.all([
     listProjects({
       ...(statusFilter ? { status: statusFilter } : {}),
       ...(clientFilter ? { clientId: clientFilter } : {}),
@@ -73,9 +73,9 @@ export default async function ProjectsPage({
     }),
     clientFilter ? getClientNameById(clientFilter) : Promise.resolve(null),
     getDateStylePreference(),
-    getCurrentAppRole(),
+    getCurrentAppRoles(),
   ]);
-  const canSeeIncoming = isOfficeOrAdminRole(role);
+  const canSeeIncoming = isOfficeOrAdminRole(roles);
   const statusOptions = canSeeIncoming
     ? PROJECT_STATUS_KANBAN_ORDER
     : PROJECT_STATUS_KANBAN_ORDER.filter((s) => s !== "incoming");

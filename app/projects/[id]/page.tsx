@@ -31,10 +31,10 @@ import { ProjectTimeEntryStaffForm } from "@/components/projects/project-time-en
 import { ProjectTotalPriceForm } from "@/components/projects/project-total-price-form";
 import { Button } from "@/components/ui/button";
 import { getCurrentUserEmployeeId } from "@/lib/auth/current-employee";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { getDateStylePreference } from "@/lib/date-style-server";
 import { getPreferredSiteOrigin } from "@/lib/site-origin";
-import { isFieldRole, isOfficeOrAdminRole } from "@/types/app-role";
+import { hasAnyAppRole, isFieldRole, isOfficeOrAdminRole } from "@/types/app-role";
 import {
   Card,
   CardContent,
@@ -96,13 +96,12 @@ export default async function ProjectDetailPage({
   const trackingUrl =
     trackingToken && siteOrigin ? `${siteOrigin}/track/${trackingToken}` : null;
 
-  const [role, dateStyle] = await Promise.all([getCurrentAppRole(), getDateStylePreference()]);
-  const showPayments = isOfficeOrAdminRole(role);
-  const canApproveIncoming = isOfficeOrAdminRole(role);
-  const canEditPricing =
-    role === "admin" || role === "office" || role === "operations";
+  const [roles, dateStyle] = await Promise.all([getCurrentAppRoles(), getDateStylePreference()]);
+  const showPayments = isOfficeOrAdminRole(roles);
+  const canApproveIncoming = isOfficeOrAdminRole(roles);
+  const canEditPricing = hasAnyAppRole(roles, ["admin", "office", "operations"]);
   const canAddAssignments = canEditPricing;
-  const canRemoveAssignments = role === "admin";
+  const canRemoveAssignments = roles.includes("admin");
 
   const [
     equipmentLines,
@@ -137,7 +136,7 @@ export default async function ProjectDetailPage({
   const showTimeEntriesBlock =
     timeEntries.length > 0 ||
     canEditPricing ||
-    (role === "field" && imAssignedToProject);
+    (isFieldRole(roles) && imAssignedToProject);
 
   const equipmentLinesView = equipmentLines.map((line) => ({
     ...line,
@@ -216,13 +215,13 @@ export default async function ProjectDetailPage({
           <CardHeader>
             <CardTitle>ניהול סטטוס</CardTitle>
             <CardDescription>
-              {isFieldRole(role)
+              {isFieldRole(roles)
                 ? "שטח: ניתן לעדכן לשלבי הכנה, הקמה ופירוק בלבד (לפי שיבוץ והרשאות)."
                 : "עדכון שלב הפרויקט במחזור החיים."}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isFieldRole(role) ? (
+            {isFieldRole(roles) ? (
               <FieldProjectStatusForm currentStatus={status} projectId={project.id} />
             ) : (
               <ProjectStatusForm

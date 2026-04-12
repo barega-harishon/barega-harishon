@@ -44,7 +44,7 @@ export function adminSidebarGroupContainsHref(
     case "finance":
       return href === "/collections" || href === "/reports";
     case "system":
-      return href === "/settings" || href === "/admin/users";
+      return href === "/settings" || href === "/admin/users" || href === "/admin/permissions";
     default:
       return false;
   }

@@ -11,14 +11,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
+import { APP_ROLE_LABELS_HE } from "@/types/app-role";
 import { PROJECT_STATUS_LABELS } from "@/types/projects";
 
 export const dynamic = "force-dynamic";
 
 export default async function FieldHomePage() {
-  const role = await getCurrentAppRole();
+  const roles = await getCurrentAppRoles();
   const projects = await listMyAssignedProjectsBrief();
+  const showNonFieldRoleNote = roles.some((r) => r !== "field");
+  const roleLabelsHe = roles.map((r) => APP_ROLE_LABELS_HE[r]).join(" · ");
 
   return (
     <main className="container-page space-y-6 py-6">
@@ -27,9 +30,10 @@ export default async function FieldHomePage() {
         <p className="mt-1 text-sm text-muted-foreground">
           כאן מרוכזים הפרויקטים שלכם, יומן אישי ודיווח שעות — מותאם לנייד ול־PWA.
         </p>
-        {role && role !== "field" ? (
+        {showNonFieldRoleNote ? (
           <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">
-            אתם מחוברים כ־{role}. איזור השטח מיועד בעיקר לצוות משובץ; ניתן להמשיך גם כך.
+            אתם מחוברים עם התפקידים: {roleLabelsHe}. איזור השטח מיועד בעיקר לצוות משובץ; ניתן להמשיך גם
+            כך.
           </p>
         ) : null}
       </div>

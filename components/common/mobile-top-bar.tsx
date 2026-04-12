@@ -21,12 +21,12 @@ const LOGO_ALT = "אלוף הבמה והציוד";
 
 export function MobileTopBar({
   items,
-  role,
+  roles,
 }: {
   items: NavDrawerItem[];
-  role: AppRole | null;
+  roles: AppRole[];
 }) {
-  const isAdmin = role === "admin";
+  const isAdmin = roles.includes("admin");
   const orphanItems = isAdmin ? adminSidebarOrphanNavItems(items) : [];
   const groups = isAdmin
     ? [

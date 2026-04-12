@@ -14,7 +14,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
+import { hasAnyAppRole } from "@/types/app-role";
 import { normalizeTruckStatusForForm, TRUCK_STATUS_LABELS, truckDisplayLabel } from "@/types/trucks";
 
 export const dynamic = "force-dynamic";
@@ -25,10 +26,10 @@ export default async function EditTruckPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [truck, employeeOptions, role, activeProject] = await Promise.all([
+  const [truck, employeeOptions, roles, activeProject] = await Promise.all([
     getTruckById(id),
     listEmployeeOptionsForAssignments(),
-    getCurrentAppRole(),
+    getCurrentAppRoles(),
     getTruckActiveProjectAssignment(id),
   ]);
 
@@ -36,9 +37,8 @@ export default async function EditTruckPage({
     notFound();
   }
 
-  const canManage =
-    role === "admin" || role === "operations" || role === "warehouse";
-  const showDelete = role === "admin";
+  const canManage = hasAnyAppRole(roles, ["admin", "operations", "warehouse"]);
+  const showDelete = roles.includes("admin");
 
   return (
     <main className="container-page py-8">

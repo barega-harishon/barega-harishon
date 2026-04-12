@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/card";
 import { getDateStylePreference } from "@/lib/date-style-server";
 import type { DateStylePreference } from "@/lib/ui-preferences";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { hasServiceRoleKey } from "@/lib/supabase/service-role";
 import { formatDateTimeByPreference } from "@/utils/date";
 
@@ -47,8 +47,8 @@ export default async function AdminUsersPage({
   const sp = searchParams ? await searchParams : {};
   const inviteEmailPrefill = parseInviteEmailParam(sp.inviteEmail);
 
-  const [role, dateStyle] = await Promise.all([getCurrentAppRole(), getDateStylePreference()]);
-  if (role !== "admin") {
+  const [roles, dateStyle] = await Promise.all([getCurrentAppRoles(), getDateStylePreference()]);
+  if (!roles.includes("admin")) {
     redirect("/dashboard");
   }
 
@@ -109,7 +109,7 @@ export default async function AdminUsersPage({
                 <th className="p-3 font-medium">דוא״ל</th>
                 <th className="p-3 font-medium">שם בתצוגה</th>
                 <th className="p-3 font-medium">נוצר</th>
-                <th className="p-3 font-medium">תפקיד</th>
+                <th className="p-3 font-medium">תפקיד ראשי ונוספים</th>
               </tr>
             </thead>
             <tbody>
@@ -123,7 +123,11 @@ export default async function AdminUsersPage({
                     {formatWhen(row.createdAt, dateStyle)}
                   </td>
                   <td className="p-3 align-top">
-                    <ProfileRoleUpdateForm defaultRole={row.role} profileId={row.profileId} />
+                    <ProfileRoleUpdateForm
+                      defaultExtraRoles={row.extraRoles}
+                      defaultRole={row.role}
+                      profileId={row.profileId}
+                    />
                   </td>
                 </tr>
               ))}

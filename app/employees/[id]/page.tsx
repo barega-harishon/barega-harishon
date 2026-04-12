@@ -7,11 +7,12 @@ import { EmployeeFileEventsList } from "@/components/employees/employee-file-eve
 import { EmployeeFilesCell, type EmployeeFileLink } from "@/components/employees/employee-files-cell";
 import { EmployeeFilesUploadForm } from "@/components/employees/employee-files-upload-form";
 import { Button } from "@/components/ui/button";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { getDateStylePreference } from "@/lib/date-style-server";
 import { EMPLOYEE_FILES_BUCKET } from "@/lib/storage/buckets";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { EMPLOYEE_TYPE_LABELS } from "@/types/employees";
+import { hasAnyAppRole } from "@/types/app-role";
 import { formatCurrencyIl } from "@/utils/money";
 
 type Props = {
@@ -56,18 +57,18 @@ export default async function EmployeeDetailsPage({ params, searchParams }: Prop
   const setup = Array.isArray(setupRaw) ? setupRaw[0] : setupRaw;
   const highlightAuthSetup = setup === "auth";
 
-  const [row, role, dateStyle] = await Promise.all([
+  const [row, roles, dateStyle] = await Promise.all([
     getEmployeeById(id),
-    getCurrentAppRole(),
+    getCurrentAppRoles(),
     getDateStylePreference(),
   ]);
   if (!row) {
     notFound();
   }
 
-  const canManage = role === "admin" || role === "office" || role === "operations";
-  const canLinkAuthAccount = role === "admin" || role === "office";
-  const isAdmin = role === "admin";
+  const canManage = hasAnyAppRole(roles, ["admin", "office", "operations"]);
+  const canLinkAuthAccount = hasAnyAppRole(roles, ["admin", "office"]);
+  const isAdmin = roles.includes("admin");
   const showAdminInviteLink = isAdmin && Boolean(row.email?.trim()) && !row.auth_user_id;
   const [documents, licenses, events] = await Promise.all([
     toSignedLinks(row.documents_paths),

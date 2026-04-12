@@ -6,21 +6,21 @@ import { listTrucks } from "@/actions/trucks";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { NewTruckForm } from "@/components/trucks/new-truck-form";
 import { Button } from "@/components/ui/button";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
+import { hasAnyAppRole } from "@/types/app-role";
 import { normalizeTruckStatusForForm, TRUCK_STATUS_LABELS, truckDisplayLabel } from "@/types/trucks";
 
 export const dynamic = "force-dynamic";
 
 export default async function TrucksPage() {
-  const [rows, employeeOptions, role, activeByTruck] = await Promise.all([
+  const [rows, employeeOptions, roles, activeByTruck] = await Promise.all([
     listTrucks(),
     listEmployeeOptionsForAssignments(),
-    getCurrentAppRole(),
+    getCurrentAppRoles(),
     mapTruckIdToActiveProject(),
   ]);
 
-  const canManage =
-    role === "admin" || role === "operations" || role === "warehouse";
+  const canManage = hasAnyAppRole(roles, ["admin", "operations", "warehouse"]);
 
   return (
     <main className="container-page py-8">

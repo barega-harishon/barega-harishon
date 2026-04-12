@@ -1,5 +1,5 @@
 import { listOpenCollectionBalances } from "@/actions/collections";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { isOfficeOrAdminRole } from "@/types/app-role";
 import { PROJECT_STATUS_LABELS } from "@/types/projects";
 import { buildCsvRow } from "@/utils/csv";
@@ -7,8 +7,8 @@ import { buildCsvRow } from "@/utils/csv";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const role = await getCurrentAppRole();
-  if (!isOfficeOrAdminRole(role)) {
+  const roles = await getCurrentAppRoles();
+  if (!isOfficeOrAdminRole(roles)) {
     return new Response("אין הרשאה לייצוא.", {
       status: 403,
       headers: { "Content-Type": "text/plain; charset=utf-8" },

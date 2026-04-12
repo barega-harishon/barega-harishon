@@ -14,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { ASSIGNMENT_ROLE_LABELS } from "@/types/assignments";
 import type { AssignmentRole } from "@/types/assignments";
 import type { ProjectStatus } from "@/types/projects";
@@ -47,7 +47,7 @@ export default async function FieldProjectDetailPage({
 
   const status: ProjectStatus = isProjectStatus(project.status) ? project.status : "quote";
   const clientName = project.clients?.name ?? "—";
-  const role = await getCurrentAppRole();
+  const roles = await getCurrentAppRoles();
 
   const [assignments, timeEntries] = await Promise.all([
     listAssignmentsForProject(project.id),
@@ -92,7 +92,7 @@ export default async function FieldProjectDetailPage({
         </CardContent>
       </Card>
 
-      {role === "field" ? (
+      {roles.includes("field") ? (
         <Card>
           <CardHeader>
             <CardTitle>סטטוס בשטח</CardTitle>

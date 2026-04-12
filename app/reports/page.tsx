@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { isOfficeOrAdminRole } from "@/types/app-role";
 import { formatCurrencyIl } from "@/utils/money";
 
@@ -31,8 +31,8 @@ export default async function BusinessReportsPage({
   const rawYear = Number.parseInt(sp.year ?? "", 10);
   const year = Number.isFinite(rawYear) ? rawYear : new Date().getFullYear();
 
-  const role = await getCurrentAppRole();
-  const allowed = isOfficeOrAdminRole(role);
+  const roles = await getCurrentAppRoles();
+  const allowed = isOfficeOrAdminRole(roles);
 
   if (!allowed) {
     return (

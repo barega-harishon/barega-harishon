@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isOfficeOrAdminRole } from "@/types/app-role";
 import type { ProjectStatus } from "@/types/projects";
@@ -28,8 +28,8 @@ function isProjectStatus(value: string): value is ProjectStatus {
 
 /** פרויקטים עם יתרה חיובית (משרד/אדמין בלבד). */
 export async function listOpenCollectionBalances(): Promise<CollectionBalanceRow[]> {
-  const role = await getCurrentAppRole();
-  if (!isOfficeOrAdminRole(role)) {
+  const roles = await getCurrentAppRoles();
+  if (!isOfficeOrAdminRole(roles)) {
     return [];
   }
 

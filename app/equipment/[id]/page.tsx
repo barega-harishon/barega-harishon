@@ -7,7 +7,7 @@ import { EquipmentBatchesPanel } from "@/components/equipment/equipment-batches-
 import { DeleteEquipmentButton } from "@/components/equipment/delete-equipment-button";
 import { EditEquipmentForm } from "@/components/equipment/edit-equipment-form";
 import { Button } from "@/components/ui/button";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 
 export const dynamic = "force-dynamic";
 
@@ -17,14 +17,14 @@ export default async function EditEquipmentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [equipment, role] = await Promise.all([getEquipmentRowById(id), getCurrentAppRole()]);
+  const [equipment, roles] = await Promise.all([getEquipmentRowById(id), getCurrentAppRoles()]);
 
   if (!equipment) {
     notFound();
   }
 
   const batches = await listEquipmentBatchAvailability(equipment.id);
-  const showDelete = role === "admin";
+  const showDelete = roles.includes("admin");
 
   return (
     <main className="container-page py-8">

@@ -1,7 +1,7 @@
 "use server";
 
 import { getEquipmentAvailabilityMap } from "@/actions/project-equipment";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isOfficeOrAdminRole } from "@/types/app-role";
 import type { ProjectStatus } from "@/types/projects";
@@ -195,8 +195,8 @@ function hebrewMonthLabel(yearMonth: string): string {
 
 /** סכומי תשלומים לפי חודש (רק משרד/אדמין). */
 export async function getDashboardMonthlyPayments(): Promise<MonthlyPaymentRow[]> {
-  const role = await getCurrentAppRole();
-  if (!isOfficeOrAdminRole(role)) {
+  const roles = await getCurrentAppRoles();
+  if (!isOfficeOrAdminRole(roles)) {
     return [];
   }
 

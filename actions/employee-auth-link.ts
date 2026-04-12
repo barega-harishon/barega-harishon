@@ -3,15 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { getSafeClientErrorMessage } from "@/lib/errors";
 import { hasServiceRoleKey, createServiceRoleSupabaseClient } from "@/lib/supabase/service-role";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/types/common";
+import { hasAnyAppRole, type AppRole } from "@/types/app-role";
 import { normalizeEmail } from "@/utils/sanitize";
 
-function canLinkEmployeeRole(role: Awaited<ReturnType<typeof getCurrentAppRole>>): boolean {
-  return role === "admin" || role === "office";
+function canLinkEmployeeRole(roles: AppRole[]): boolean {
+  return hasAnyAppRole(roles, ["admin", "office"]);
 }
 
 async function resolveAuthUserIdFromEmail(email: string): Promise<string | null> {
@@ -46,8 +47,8 @@ export async function linkEmployeeAuthUserFromForm(
   _prev: ActionResult<null> | null,
   formData: FormData,
 ): Promise<ActionResult<null> | null> {
-  const role = await getCurrentAppRole();
-  if (!canLinkEmployeeRole(role)) {
+  const roles = await getCurrentAppRoles();
+  if (!canLinkEmployeeRole(roles)) {
     return { success: false, message: "אין הרשאה לקישור חשבון." };
   }
 
@@ -140,8 +141,8 @@ export async function unlinkEmployeeAuthUserFromForm(
   _prev: ActionResult<null> | null,
   formData: FormData,
 ): Promise<ActionResult<null> | null> {
-  const role = await getCurrentAppRole();
-  if (!canLinkEmployeeRole(role)) {
+  const roles = await getCurrentAppRoles();
+  if (!canLinkEmployeeRole(roles)) {
     return { success: false, message: "אין הרשאה." };
   }
 

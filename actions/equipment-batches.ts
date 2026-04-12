@@ -2,10 +2,10 @@
 
 import { z } from "zod";
 
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { getSafeClientErrorMessage, toServerError } from "@/lib/errors";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { isOfficeOrAdminRole } from "@/types/app-role";
+import { hasAnyAppRole, isOfficeOrAdminRole } from "@/types/app-role";
 import type { ActionResult } from "@/types/common";
 import type {
   EquipmentBatchAvailabilityRow,
@@ -128,8 +128,8 @@ export async function createEquipmentPurchaseBatch(
     return { success: false, message: "נתוני אצווה לא תקינים." };
   }
   try {
-    const role = await getCurrentAppRole();
-    if (!(isOfficeOrAdminRole(role) || role === "warehouse")) {
+    const roles = await getCurrentAppRoles();
+    if (!(isOfficeOrAdminRole(roles) || roles.includes("warehouse"))) {
       return { success: false, message: "אין הרשאה להוסיף אצווה." };
     }
     const purchasedAt = normalizeDateToIsoDate(parsed.data.purchasedAt);
@@ -188,8 +188,8 @@ export async function updateEquipmentPurchaseBatch(
     return { success: false, message: "נתוני אצווה לא תקינים." };
   }
   try {
-    const role = await getCurrentAppRole();
-    if (!(isOfficeOrAdminRole(role) || role === "warehouse")) {
+    const roles = await getCurrentAppRoles();
+    if (!(isOfficeOrAdminRole(roles) || roles.includes("warehouse"))) {
       return { success: false, message: "אין הרשאה לעריכת אצווה." };
     }
     const purchasedAt = normalizeDateToIsoDate(parsed.data.purchasedAt);
@@ -226,8 +226,8 @@ export async function deleteEquipmentPurchaseBatch(
     return { success: false, message: "בקשה לא תקינה." };
   }
   try {
-    const role = await getCurrentAppRole();
-    if (role !== "admin") {
+    const roles = await getCurrentAppRoles();
+    if (!roles.includes("admin")) {
       return { success: false, message: "רק אדמין רשאי למחוק אצווה." };
     }
     const supabase = await createServerSupabaseClient();
@@ -250,12 +250,12 @@ export async function createEquipmentPickTransactions(
     return { success: false, message: "נתוני ליקוט לא תקינים." };
   }
   try {
-    const role = await getCurrentAppRole();
+    const roles = await getCurrentAppRoles();
     if (parsed.data.source === "warehouse") {
-      if (!(isOfficeOrAdminRole(role) || role === "warehouse")) {
+      if (!(isOfficeOrAdminRole(roles) || roles.includes("warehouse"))) {
         return { success: false, message: "אין הרשאה לליקוט גלובלי." };
       }
-    } else if (!(role === "admin" || role === "office" || role === "operations" || role === "warehouse")) {
+    } else if (!hasAnyAppRole(roles, ["admin", "office", "operations", "warehouse"])) {
       return { success: false, message: "אין הרשאה לליקוט לפרויקט." };
     }
 

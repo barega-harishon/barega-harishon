@@ -9,14 +9,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { isOfficeOrAdminRole } from "@/types/app-role";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewClientPage() {
-  const role = await getCurrentAppRole();
-  const canCreate = isOfficeOrAdminRole(role);
+  const roles = await getCurrentAppRoles();
+  const canCreate = isOfficeOrAdminRole(roles);
 
   return (
     <main className="container-page py-8">

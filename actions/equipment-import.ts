@@ -6,7 +6,7 @@ import * as XLSX from "xlsx";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSafeClientErrorMessage, toServerError } from "@/lib/errors";
 import type { ActionResult } from "@/types/common";
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { isOfficeOrAdminRole } from "@/types/app-role";
 import { normalizeImportedEquipmentCategory } from "@/lib/equipment/equipment-categories";
 import { sanitizeText } from "@/utils/sanitize";
@@ -159,8 +159,8 @@ export async function importEquipmentFromCsvForm(
   formData: FormData,
 ): Promise<ActionResult<{ imported: number }> | null> {
   try {
-    const role = await getCurrentAppRole();
-    if (!isOfficeOrAdminRole(role) && role !== "warehouse") {
+    const roles = await getCurrentAppRoles();
+    if (!isOfficeOrAdminRole(roles) && !roles.includes("warehouse")) {
       return { success: false, message: "אין הרשאה לייבוא מלאי." };
     }
 

@@ -1,4 +1,4 @@
-import { getCurrentAppRole } from "@/lib/auth/current-profile";
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isOfficeOrAdminRole } from "@/types/app-role";
 import { buildCsvRow } from "@/utils/csv";
@@ -13,8 +13,8 @@ function parseKind(raw: string | null): ExportKind {
 }
 
 export async function GET(request: Request) {
-  const role = await getCurrentAppRole();
-  if (!isOfficeOrAdminRole(role) && role !== "warehouse") {
+  const roles = await getCurrentAppRoles();
+  if (!isOfficeOrAdminRole(roles) && !roles.includes("warehouse")) {
     return new Response("אין הרשאה לייצוא מלאי.", {
       status: 403,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
