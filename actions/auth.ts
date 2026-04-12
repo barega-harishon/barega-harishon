@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 
 import { getSafeClientErrorMessage } from "@/lib/errors";
+import { getOriginFromHeaders } from "@/lib/http/server-origin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { normalizeEmail } from "@/utils/sanitize";
 
@@ -64,15 +65,6 @@ const forgotPasswordSchema = z.object({
   email: z.string().email("כתובת דוא״ל אינה תקינה").transform(normalizeEmail),
 });
 
-function getBaseUrlFromHeaders(headerList: Headers): string {
-  const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
-  const protocol = headerList.get("x-forwarded-proto") ?? "https";
-  if (!host) {
-    return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  }
-  return `${protocol}://${host}`;
-}
-
 export async function requestPasswordResetFromForm(
   _prevState: { message: string; success?: boolean } | null,
   formData: FormData,
@@ -88,7 +80,7 @@ export async function requestPasswordResetFromForm(
   try {
     const supabase = await createServerSupabaseClient();
     const h = await headers();
-    const baseUrl = getBaseUrlFromHeaders(h);
+    const baseUrl = getOriginFromHeaders(h);
     const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
       redirectTo: `${baseUrl}/reset-password`,
     });

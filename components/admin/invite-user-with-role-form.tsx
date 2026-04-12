@@ -21,6 +21,10 @@ export function InviteUserWithRoleForm({ defaultAppRole, initialEmail }: InviteU
 
   return (
     <form action={formAction} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+      <p className="text-sm text-muted-foreground sm:col-span-2 lg:col-span-4">
+        לפני שליחה: עדכנו את Supabase Redirect URLs. המוזמן צריך לפתוח את המייל בחלון פרטי או להתנתק מהחשבון
+        הנוכחי בדפדפן.
+      </p>
       <div className="space-y-1.5 sm:col-span-2">
         <label className="block text-sm font-medium text-foreground" htmlFor="invite-email">
           דוא״ל להזמנה

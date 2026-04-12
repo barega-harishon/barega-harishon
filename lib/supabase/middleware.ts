@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { userMustChangePassword } from "@/lib/auth/must-change-password";
+
 /**
  * Refreshes the Supabase session on each matched request so Server Components
  * see up-to-date auth. Redirects unauthenticated users away from protected app routes.
@@ -34,6 +36,17 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
+  const mustChange = Boolean(user && userMustChangePassword(user));
+  const isAuthCallback = pathname.startsWith("/auth/callback");
+  const isMandatoryPasswordPage = pathname === "/account/change-password";
+
+  if (mustChange && !isMandatoryPasswordPage && !isAuthCallback) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/account/change-password";
+    redirectUrl.searchParams.delete("next");
+    return NextResponse.redirect(redirectUrl);
+  }
+
   const needsAuth =
     pathname.startsWith("/projects") ||
     pathname.startsWith("/clients") ||
@@ -53,7 +66,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (pathname.startsWith("/login") && user) {
+  if (pathname.startsWith("/login") && user && !mustChange) {
     const redirectUrl = request.nextUrl.clone();
     const next = redirectUrl.searchParams.get("next");
     const safeNext =

@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { listAdminUserRows } from "@/actions/admin-users";
+import { CreateUserWithRoleForm } from "@/components/admin/create-user-with-role-form";
 import { InviteUserWithRoleForm } from "@/components/admin/invite-user-with-role-form";
 import { ProfileRoleUpdateForm } from "@/components/admin/profile-role-update-form";
+import { RemoveUserFromTenantForm } from "@/components/admin/remove-user-from-tenant-form";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +19,7 @@ import {
 import { getDateStylePreference } from "@/lib/date-style-server";
 import type { DateStylePreference } from "@/lib/ui-preferences";
 import { getCurrentAppRoles } from "@/lib/auth/current-profile";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { hasServiceRoleKey } from "@/lib/supabase/service-role";
 import { formatDateTimeByPreference } from "@/utils/date";
 
@@ -52,9 +55,15 @@ export default async function AdminUsersPage({
     redirect("/dashboard");
   }
 
-  const [{ rows, loadError, emailsNote }, inviteOk] = await Promise.all([
+  const [{ rows, loadError, emailsNote }, inviteOk, authMe] = await Promise.all([
     listAdminUserRows(),
     Promise.resolve(hasServiceRoleKey()),
+    createServerSupabaseClient().then(async (s) => {
+      const {
+        data: { user },
+      } = await s.auth.getUser();
+      return user?.id ?? null;
+    }),
   ]);
 
   return (
@@ -63,7 +72,7 @@ export default async function AdminUsersPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">משתמשים ותפקידים</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            ניהול תפקידי אפליקציה ב־profiles והזמנת משתמשים עם תפקיד (דרך Auth).
+            ניהול תפקידי אפליקציה ב־profiles, יצירת משתמשים עם סיסמה ראשונית, או הזמנה במייל (אופציונלי).
           </p>
         </div>
         <Button asChild className={selectorButtonClass(false)} variant="outline">
@@ -73,10 +82,40 @@ export default async function AdminUsersPage({
 
       <Card className="mb-8">
         <CardHeader>
-          <CardTitle>הזמנת משתמש חדש</CardTitle>
-          <CardDescription>
-            נשלח מייל הזמנה מ־Supabase. לאחר יצירת החשבון יוגדר התפקיד שנבחר (כולל עדכון ב־profiles כשהשירות
-            זמין).
+          <CardTitle>יצירת משתמש חדש (מומלץ)</CardTitle>
+          <CardDescription className="space-y-2">
+            <span className="block">
+              נוצר חשבון ב־Supabase עם דוא״ל וסיסמה זמנית. המשתמש יתבקש להחליף סיסמה בכניסה ראשונה. אין שליחת
+              מייל מהמערכת בנתיב זה.
+            </span>
+            <span className="block text-amber-900/90 dark:text-amber-100/90">
+              העבירו את הסיסמה החד־פעמית בערוץ מאובטח (לא בדוא״ל פתוח או צ׳אט ציבורי).
+            </span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {inviteOk ? (
+            <CreateUserWithRoleForm defaultAppRole="office" />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              יצירת משתמש דורשת <span className="font-mono">SUPABASE_SERVICE_ROLE_KEY</span> בסביבת השרת.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>הזמנה במייל (אופציונלי)</CardTitle>
+          <CardDescription className="space-y-2">
+            <span className="block">
+              נשלח מייל הזמנה מ־Supabase. הקישור יוביל ל־<span className="font-mono text-xs">/auth/callback</span> —
+              יש להוסיף את כתובת ההפניה המלאה תחת Redirect URLs ב־Supabase Auth (כולל פרודקשן ולוקאלי אם נדרש).
+            </span>
+            <span className="block text-amber-900/90 dark:text-amber-100/90">
+              חשוב: אם פותחים את קישור ההזמנה בדפדפן שבו כבר מחובר אדמין, תישאר סשן האדמין. המוזמן צריך חלון
+              גלישה פרטית או להתנתק לפני לחיצה על הקישור.
+            </span>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -103,13 +142,14 @@ export default async function AdminUsersPage({
         </p>
       ) : (
         <div className="overflow-x-auto rounded-[var(--radius)] border border-border">
-          <table className="w-full min-w-[42rem] border-collapse text-sm">
+          <table className="w-full min-w-[52rem] border-collapse text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-start">
                 <th className="p-3 font-medium">דוא״ל</th>
                 <th className="p-3 font-medium">שם בתצוגה</th>
                 <th className="p-3 font-medium">נוצר</th>
                 <th className="p-3 font-medium">תפקיד ראשי ונוספים</th>
+                <th className="p-3 font-medium">הסרה</th>
               </tr>
             </thead>
             <tbody>
@@ -127,6 +167,13 @@ export default async function AdminUsersPage({
                       defaultExtraRoles={row.extraRoles}
                       defaultRole={row.role}
                       profileId={row.profileId}
+                    />
+                  </td>
+                  <td className="p-3 align-top">
+                    <RemoveUserFromTenantForm
+                      isSelf={authMe !== null && row.profileId === authMe}
+                      profileId={row.profileId}
+                      serviceRoleAvailable={inviteOk}
                     />
                   </td>
                 </tr>

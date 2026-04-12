@@ -18,7 +18,7 @@ const LOGO_ALT = "אלוף הבמה והציוד";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
   const params = await searchParams;
   const rawNext = params.next;
@@ -28,6 +28,8 @@ export default async function LoginPage({
     !rawNext.startsWith("//")
       ? rawNext
       : "/dashboard";
+
+  const authCallbackFailed = params.error === "auth_callback";
 
   return (
     <main className="container-page flex flex-1 flex-col items-center justify-center gap-10 py-10 sm:gap-12 sm:py-14">
@@ -52,6 +54,11 @@ export default async function LoginPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 border-t border-border/70 px-8 pb-8 pt-6 sm:px-10 sm:pb-10">
+          {authCallbackFailed ? (
+            <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">
+              לא הצלחנו להשלים את ההתחברות מהקישור במייל. נסו לפתוח את הקישור שוב, או התחברו עם דוא״ל וסיסמה.
+            </p>
+          ) : null}
           <LoginForm nextPath={nextPath} />
           <InstallPwaPanel />
           <p className="text-center text-sm text-muted-foreground">
