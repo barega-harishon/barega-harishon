@@ -74,14 +74,11 @@ function normalizeProjectSearchTerm(raw: string | undefined): string {
 
 function baseProjectsListQuery(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  filter?: { status?: ProjectStatus; clientId?: string; includeIncoming?: boolean },
+  filter?: { status?: ProjectStatus; clientId?: string },
 ) {
   let q = supabase.from("projects").select(PROJECT_LIST_SELECT);
   if (filter?.status) {
     q = q.eq("status", filter.status);
-  }
-  if (filter?.includeIncoming === false) {
-    q = q.neq("status", "incoming");
   }
   if (filter?.clientId) {
     q = q.eq("client_id", filter.clientId);
@@ -104,10 +101,7 @@ export async function listProjects(
     const pattern = `%${term}%`;
 
     if (filter?.clientId) {
-      const { data, error } = await baseProjectsListQuery(supabase, {
-        ...filter,
-        includeIncoming: canSeeIncoming,
-      })
+      const { data, error } = await baseProjectsListQuery(supabase, filter)
         .ilike("location_address", pattern)
         .order("created_at", { ascending: false });
 
@@ -125,16 +119,16 @@ export async function listProjects(
     const idList = (clientMatches ?? []).map((r) => r.id as string);
 
     const promises = [
-      baseProjectsListQuery(supabase, { ...filter, includeIncoming: canSeeIncoming })
-        .ilike("location_address", pattern)
-        .order("created_at", { ascending: false }),
+      baseProjectsListQuery(supabase, filter).ilike("location_address", pattern).order("created_at", {
+        ascending: false,
+      }),
     ];
 
     if (idList.length > 0) {
       promises.push(
-        baseProjectsListQuery(supabase, { ...filter, includeIncoming: canSeeIncoming })
-          .in("client_id", idList)
-          .order("created_at", { ascending: false }),
+        baseProjectsListQuery(supabase, filter).in("client_id", idList).order("created_at", {
+          ascending: false,
+        }),
       );
     }
 
@@ -154,10 +148,7 @@ export async function listProjects(
     );
   }
 
-  const { data, error } = await baseProjectsListQuery(supabase, {
-    ...filter,
-    includeIncoming: canSeeIncoming,
-  }).order("created_at", {
+  const { data, error } = await baseProjectsListQuery(supabase, filter).order("created_at", {
     ascending: false,
   });
 
@@ -221,14 +212,7 @@ export async function getProjectById(id: string): Promise<ProjectDetailRow | nul
       null;
   }
 
-  const roles = await getCurrentAppRoles();
-  const canSeeIncoming = isOfficeOrAdminRole(roles);
-  const typed = row as ProjectDetailRow;
-  if (typed.status === "incoming" && !canSeeIncoming) {
-    return null;
-  }
-
-  return typed;
+  return row as ProjectDetailRow;
 }
 
 export async function createProject(
@@ -606,8 +590,6 @@ export async function listProjectsForCalendarMonth(
   const endIso = end.toISOString();
 
   const supabase = await createServerSupabaseClient();
-  const roles = await getCurrentAppRoles();
-  const canSeeIncoming = isOfficeOrAdminRole(roles);
 
   const select = `
     id,
@@ -660,9 +642,6 @@ export async function listProjectsForCalendarMonth(
     const st = options.statusFilter;
     if (st && st.length > 0) {
       out = out.in("status", st);
-    }
-    if (!canSeeIncoming) {
-      out = out.neq("status", "incoming");
     }
     return out;
   };
