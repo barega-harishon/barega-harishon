@@ -7,6 +7,7 @@ import { CreateUserWithRoleForm } from "@/components/admin/create-user-with-role
 import { InviteUserWithRoleForm } from "@/components/admin/invite-user-with-role-form";
 import { ProfileRoleUpdateForm } from "@/components/admin/profile-role-update-form";
 import { RemoveUserFromTenantForm } from "@/components/admin/remove-user-from-tenant-form";
+import { ResetUserPasswordForm } from "@/components/admin/reset-user-password-form";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { Button } from "@/components/ui/button";
 import {
@@ -149,6 +150,7 @@ export default async function AdminUsersPage({
                 <th className="p-3 font-medium">שם בתצוגה</th>
                 <th className="p-3 font-medium">נוצר</th>
                 <th className="p-3 font-medium">תפקיד ראשי ונוספים</th>
+                <th className="p-3 font-medium">איפוס סיסמה</th>
                 <th className="p-3 font-medium">הסרה</th>
               </tr>
             </thead>
@@ -168,6 +170,13 @@ export default async function AdminUsersPage({
                       defaultRole={row.role}
                       profileId={row.profileId}
                     />
+                  </td>
+                  <td className="p-3 align-top">
+                    {inviteOk ? (
+                      <ResetUserPasswordForm isSelf={authMe !== null && row.profileId === authMe} profileId={row.profileId} />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </td>
                   <td className="p-3 align-top">
                     <RemoveUserFromTenantForm

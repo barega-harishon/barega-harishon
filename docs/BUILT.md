@@ -95,6 +95,7 @@
 - **פנייה ציבורית** (`/pniha`): יצירת לקוח + פרויקט (`quote`) + `project_site_details` עם `submitted_by_client`, והעלאות ל־Storage דרך **service role** (המפתח רק בשרת); הצגת קישור **מעקב** אחרי שליחה.
 - **קישור מעקב ללקוח**: `/track/[token]` + `public_tracking_token` ב־DB; בדף פרויקט — העתקת קישור מלא (`NEXT_PUBLIC_SITE_URL` או כותרות בקשה).
 - **RLS** וסכמה ב־SQL (ראו `supabase/migrations/...`).
+- **Google Calendar Sync**: סנכרון חד־כיווני של אבני דרך לפרויקטים (הקמה/אירוע/פירוק) ליומן משותף באמצעות Service Account; Backfill מאובטח דרך `GET /api/cron/google-calendar-backfill`.
 
 ---
 
@@ -114,6 +115,9 @@
 
 - [ ] כל מיגרציות Supabase רצות בפרודקשן (כולל `20260326120000_employees_team_fields` ו־`20260326123000_storage_policies_harden`).
 - [ ] `CRON_SECRET` מוגדר ונתיב `/api/cron` מאומת עם `Authorization: Bearer <secret>`.
+- [ ] `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`, `GOOGLE_CALENDAR_ID` מוגדרים (אם סנכרון יומן פעיל).
+- [ ] היומן המשותף שותף ל־Service Account בהרשאת שינוי אירועים.
+- [ ] נבדק Backfill: `GET /api/cron/google-calendar-backfill` עם `CRON_SECRET`.
 - [ ] `NEXT_PUBLIC_SITE_URL` תואם לדומיין הפעיל.
 - [ ] smoke בדפים: `/`, `/login`, `/dashboard`, `/employees`, `/reports`.
 - [ ] לוגו נטען מ־`/brand/logo.png` גם בממשק וגם ב־manifest.

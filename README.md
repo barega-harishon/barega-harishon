@@ -23,12 +23,16 @@ SUPABASE_SERVICE_ROLE_KEY=
 CRON_SECRET=
 RESEND_API_KEY=
 RESEND_FROM=
+GOOGLE_SERVICE_ACCOUNT_EMAIL=
+GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=
+GOOGLE_CALENDAR_ID=
 ```
 
 הערות:
 
 - `SUPABASE_SERVICE_ROLE_KEY` נדרש לפעולות שרת כמו פנייה ציבורית/מעקב.
 - `CRON_SECRET` נדרש ל־`/api/cron`.
+- משתני `GOOGLE_*` נדרשים לסנכרון יומן פרויקטים ל־Google Calendar (אם לא מוגדרים, הסנכרון מדולג).
 - נתמכים אימותי cron דרך:
   - `Authorization: Bearer <CRON_SECRET>`
   - `x-cron-secret: <CRON_SECRET>`
@@ -61,6 +65,29 @@ npm run dev
 npm run lint
 npm run build
 ```
+
+## סנכרון Google Calendar (חד-כיווני)
+
+המערכת תומכת בסנכרון פרויקטים ליומן Google משותף באמצעות Service Account.
+
+- כל פרויקט יכול לסנכרן עד 3 אירועים: הקמה (`setup_starts_at`), אירוע (`event_starts_at`/`event_ends_at`), פירוק (`teardown_at`).
+- סטטוס `closed` מוחק את אירועי היומן של הפרויקט.
+- הסנכרון מופעל אוטומטית אחרי יצירה/עדכון פרויקט, וגם דרך backfill מאובטח.
+
+הגדרה:
+
+1. צרו Service Account ב־Google Cloud והורידו private key.
+2. שתפו את היומן המשותף עם `GOOGLE_SERVICE_ACCOUNT_EMAIL` בהרשאת **Make changes to events**.
+3. הגדירו את `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` (אפשר עם `\\n`, המערכת ממירה לשורות).
+4. הגדירו `GOOGLE_CALENDAR_ID` ליומן המשותף.
+
+Backfill מלא (מאובטח עם `CRON_SECRET`):
+
+- `GET /api/cron/google-calendar-backfill`
+- עם אחד מהאימותים:
+  - `Authorization: Bearer <CRON_SECRET>`
+  - `x-cron-secret: <CRON_SECRET>`
+  - `?secret=<CRON_SECRET>`
 
 ## פריסה ל-Vercel
 

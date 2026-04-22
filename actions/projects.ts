@@ -3,6 +3,7 @@
 import { z } from "zod";
 
 import { getSafeClientErrorMessage, toServerError } from "@/lib/errors";
+import { syncProjectMilestonesToGoogle } from "@/lib/google-calendar/sync";
 import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { hasAnyAppRole, isOfficeOrAdminRole } from "@/types/app-role";
@@ -51,6 +52,7 @@ function toIsoOrNull(value: string | undefined): string | null {
   return d.toISOString();
 }
 
+/** בלי embed ל־clients — מונע כשלי PostgREST/RLS על join; שמות נטענים בנפרד. */
 const PROJECT_LIST_SELECT = `
       id,
       client_id,
@@ -61,9 +63,40 @@ const PROJECT_LIST_SELECT = `
       event_starts_at,
       event_ends_at,
       teardown_at,
-      created_at,
-      clients ( name )
+      created_at
     `;
+
+async function attachClientNamesToProjectRows(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  rows: Omit<ProjectListRow, "clients">[],
+): Promise<ProjectListRow[]> {
+  if (rows.length === 0) {
+    return [];
+  }
+  const ids = [...new Set(rows.map((r) => r.client_id).filter((id): id is string => typeof id === "string"))];
+  if (ids.length === 0) {
+    return rows.map((r) => ({ ...r, clients: null }));
+  }
+
+  const { data: clientRows, error } = await supabase.from("clients").select("id, name").in("id", ids);
+  if (error) {
+    console.error("attachClientNamesToProjectRows failed", error);
+    return rows.map((r) => ({ ...r, clients: null }));
+  }
+
+  const nameById = new Map<string, string>();
+  for (const c of clientRows ?? []) {
+    const id = c.id as string;
+    const name = typeof c.name === "string" ? c.name : "";
+    nameById.set(id, name);
+  }
+
+  return rows.map((r) => ({
+    ...r,
+    status: r.status as ProjectListRow["status"],
+    clients: nameById.has(r.client_id) ? { name: nameById.get(r.client_id)! } : null,
+  }));
+}
 
 function normalizeProjectSearchTerm(raw: string | undefined): string {
   if (!raw) {
@@ -105,10 +138,14 @@ export async function listProjects(
         .ilike("location_address", pattern)
         .order("created_at", { ascending: false });
 
-      if (error || !data) {
+      if (error) {
+        console.error("listProjects search (client+location) failed", error);
         return [];
       }
-      return data as unknown as ProjectListRow[];
+      if (!data) {
+        return [];
+      }
+      return attachClientNamesToProjectRows(supabase, data as unknown as Omit<ProjectListRow, "clients">[]);
     }
 
     const { data: clientMatches } = await supabase
@@ -133,30 +170,38 @@ export async function listProjects(
     }
 
     const results = await Promise.all(promises);
-    const map = new Map<string, ProjectListRow>();
+    const map = new Map<string, Omit<ProjectListRow, "clients">>();
 
     for (const res of results) {
+      if (res.error) {
+        console.error("listProjects search subquery failed", res.error);
+      }
       const rows = res.data ?? [];
       for (const row of rows) {
-        const p = row as unknown as ProjectListRow;
+        const p = row as unknown as Omit<ProjectListRow, "clients">;
         map.set(p.id, p);
       }
     }
 
-    return Array.from(map.values()).sort(
+    const merged = Array.from(map.values()).sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
+    return attachClientNamesToProjectRows(supabase, merged);
   }
 
   const { data, error } = await baseProjectsListQuery(supabase, filter).order("created_at", {
     ascending: false,
   });
 
-  if (error || !data) {
+  if (error) {
+    console.error("listProjects failed", error);
+    return [];
+  }
+  if (!data) {
     return [];
   }
 
-  return data as unknown as ProjectListRow[];
+  return attachClientNamesToProjectRows(supabase, data as unknown as Omit<ProjectListRow, "clients">[]);
 }
 
 export async function getProjectById(id: string): Promise<ProjectDetailRow | null> {
@@ -255,6 +300,8 @@ export async function createProject(
     if (error || !data) {
       return { success: false, message: getSafeClientErrorMessage() };
     }
+
+    await syncProjectMilestonesToGoogle(data.id as string);
 
     return {
       success: true,
@@ -383,6 +430,8 @@ export async function updateProjectCore(
       return { success: false, message: getSafeClientErrorMessage() };
     }
 
+    await syncProjectMilestonesToGoogle(parsed.data.projectId);
+
     return { success: true, message: "פרטי הפרויקט עודכנו." };
   } catch (error) {
     console.error("updateProjectCore failed", toServerError(error));
@@ -482,6 +531,8 @@ export async function updateProjectStatus(
       return { success: false, message: getSafeClientErrorMessage() };
     }
 
+    await syncProjectMilestonesToGoogle(parsed.data.projectId);
+
     return {
       success: true,
       message: "סטטוס הפרויקט עודכן.",
@@ -522,6 +573,8 @@ export async function approveIncomingProjectRequest(
     if (!data) {
       return { success: false, message: "הבקשה כבר טופלה או שאינה במצב בקשה נכנסת." };
     }
+
+    await syncProjectMilestonesToGoogle(parsed.data.projectId);
 
     return {
       success: true,

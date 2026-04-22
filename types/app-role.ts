@@ -54,8 +54,9 @@ export function isAdminRole(role: AppRole | AppRole[] | null): boolean {
 }
 
 export function parseAppRole(value: string): AppRole | null {
+  const normalized = value.trim().toLowerCase();
   for (const r of APP_ROLE_OPTIONS) {
-    if (r === value) {
+    if (r === normalized) {
       return r;
     }
   }

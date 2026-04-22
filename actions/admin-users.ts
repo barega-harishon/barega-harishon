@@ -167,6 +167,69 @@ const deleteAuthUserSchema = z.object({
   profileId: z.string().uuid(),
 });
 
+const resetAuthUserPasswordSchema = z.object({
+  profileId: z.string().uuid(),
+  newPassword: z.string().min(8, "הסיסמה חייבת להכיל לפחות 8 תווים."),
+});
+
+/**
+ * איפוס סיסמה ידני למשתמש קיים (Auth) + חובת החלפה בכניסה הבאה.
+ * זמין לאדמין בלבד ודורש מפתח שרת.
+ */
+export async function resetAuthUserPasswordFromAdminForm(
+  _prev: ActionResult<null> | null,
+  formData: FormData,
+): Promise<ActionResult<null> | null> {
+  const actorRoles = await getCurrentAppRoles();
+  if (!actorRoles.includes("admin")) {
+    return { success: false, message: "אין הרשאה." };
+  }
+  if (!hasServiceRoleKey()) {
+    return { success: false, message: "איפוס סיסמה דורש הגדרת SUPABASE_SERVICE_ROLE_KEY בשרת." };
+  }
+
+  const parsed = resetAuthUserPasswordSchema.safeParse({
+    profileId: formData.get("profileId"),
+    newPassword: formData.get("newPassword"),
+  });
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return { success: false, message: first?.message ?? "נתונים לא תקינים." };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, message: "נדרשת התחברות." };
+  }
+  if (user.id === parsed.data.profileId) {
+    return { success: false, message: "לא ניתן לאפס לעצמכם סיסמה ממסך זה." };
+  }
+
+  try {
+    const admin = createServiceRoleSupabaseClient();
+    const { error } = await admin.auth.admin.updateUserById(parsed.data.profileId, {
+      password: parsed.data.newPassword,
+      user_metadata: { must_change_password: true },
+    });
+    if (error) {
+      console.error("resetAuthUserPasswordFromAdminForm updateUserById failed", error);
+      return { success: false, message: getSafeClientErrorMessage() };
+    }
+
+    revalidatePath("/admin/users");
+    return {
+      success: true,
+      message: "הסיסמה אופסה. המשתמש יתבקש להחליף סיסמה בכניסה הבאה.",
+    };
+  } catch (e) {
+    console.error("resetAuthUserPasswordFromAdminForm exception", e);
+    return { success: false, message: getSafeClientErrorMessage() };
+  }
+}
+
 /**
  * מוחק משתמש מ־Auth (ושורת profiles בגלל CASCADE) — חסימת גישה מלאה.
  * דורש מפתח שרת; לא ניתן למחוק את עצמכם או את האדמין האחרון.
