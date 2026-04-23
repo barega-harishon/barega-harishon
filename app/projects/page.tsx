@@ -160,7 +160,7 @@ export default async function ProjectsPage({
                   : "rounded-none border-0 shadow-none"
               }
               size="sm"
-              variant={view === "list" ? "secondary" : "ghost"}
+              variant={view === "list" ? "outline" : "ghost"}
             >
               <Link
                 aria-current={view === "list" ? "page" : undefined}
@@ -184,7 +184,7 @@ export default async function ProjectsPage({
                   : "rounded-none border-0 border-r border-border shadow-none"
               }
               size="sm"
-              variant={view === "kanban" ? "secondary" : "ghost"}
+              variant={view === "kanban" ? "outline" : "ghost"}
             >
               <Link
                 aria-current={view === "kanban" ? "page" : undefined}
