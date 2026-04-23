@@ -28,6 +28,7 @@ export default async function DashboardPage() {
   const [roles, dateStyle] = await Promise.all([getCurrentAppRoles(), getDateStylePreference()]);
   const showFinance = isOfficeOrAdminRole(roles);
   const canManageTeam = hasAnyAppRole(roles, ["admin", "office", "operations"]);
+  const canCreateProject = hasAnyAppRole(roles, ["admin", "office", "operations"]);
 
   const [statusRows, upcoming, lowStock, monthlyPayments] = await Promise.all([
     getDashboardStatusCounts(),
@@ -44,6 +45,11 @@ export default async function DashboardPage() {
           <p className="text-sm text-muted-foreground">תמונת מצב מהירה לפי ההרשאות שלך.</p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
+          {canCreateProject ? (
+            <Button asChild className={selectorButtonClass(false)} size="sm" variant="outline">
+              <Link href="/projects/new">הוספת פרויקט</Link>
+            </Button>
+          ) : null}
           {canManageTeam ? (
             <Button asChild className={selectorButtonClass(false)} size="sm" variant="outline">
               <Link href="/employees">צוות</Link>

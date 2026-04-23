@@ -18,15 +18,7 @@ export function buildMainNavItems(roles: AppRole[] | null): NavDrawerItem[] {
   const items: NavDrawerItem[] = [
     { href: "/dashboard", label: "דשבורד" },
     { href: "/projects/go", label: "פרויקטים" },
-    { href: "/projects/calendar", label: "יומן" },
   ];
-
-  if (canManageProjects) {
-    items.push({ href: "/projects/kanban", label: "קנבן" });
-  }
-  if (canCreateProject) {
-    items.push({ href: "/projects/new", label: "פרויקט חדש" });
-  }
 
   if (canSeeClients) {
     items.push({ href: "/clients", label: "לקוחות", dividerBefore: true });
