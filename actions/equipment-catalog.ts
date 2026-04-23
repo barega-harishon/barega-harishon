@@ -28,6 +28,11 @@ const equipmentCreateSchema = z.object({
   category: categoryFieldBase.refine((c) => isAllowedEquipmentCategory(c), {
     message: "נא לבחור קטגוריה מהרשימה או \"ללא קטגוריה\".",
   }),
+  newCategory: z
+    .string()
+    .max(100)
+    .optional()
+    .transform((v) => (v ? sanitizeText(v.trim()) : "")),
   totalQty: z.coerce.number().int().min(0, "כמות לא תקינה").max(999_999),
   rentPrice: z.coerce.number().min(0, "מחיר לא תקין").max(99_999_999),
   warehouseLocation: z
@@ -167,12 +172,13 @@ export async function createEquipment(
   }
 
   try {
+    const resolvedCategory = parsed.data.newCategory || parsed.data.category || "";
     const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase
       .from("equipment")
       .insert({
         name: parsed.data.name,
-        category: parsed.data.category || "",
+        category: resolvedCategory,
         total_qty: parsed.data.totalQty,
         rent_price: parsed.data.rentPrice,
         warehouse_location: parsed.data.warehouseLocation || null,
@@ -205,7 +211,12 @@ export async function updateEquipment(
 
   const existing = await getEquipmentRowById(parsed.data.id);
   const prevCat = (existing?.category ?? "").trim();
-  if (!isAllowedEquipmentCategory(parsed.data.category) && parsed.data.category !== prevCat) {
+  const resolvedCategory = parsed.data.newCategory || parsed.data.category || "";
+  if (
+    parsed.data.newCategory === "" &&
+    !isAllowedEquipmentCategory(parsed.data.category) &&
+    parsed.data.category !== prevCat
+  ) {
     return {
       success: false,
       message: "נא לבחור קטגוריה מהרשימה (או להשאיר את הקטגוריה הקיימת).",
@@ -218,7 +229,7 @@ export async function updateEquipment(
       .from("equipment")
       .update({
         name: parsed.data.name,
-        category: parsed.data.category || "",
+        category: resolvedCategory,
         total_qty: parsed.data.totalQty,
         rent_price: parsed.data.rentPrice,
         warehouse_location: parsed.data.warehouseLocation || null,
@@ -247,6 +258,7 @@ export async function createEquipmentFromForm(
   return createEquipment({
     name: formData.get("name"),
     category: formData.get("category"),
+    newCategory: formData.get("newCategory"),
     totalQty: formData.get("totalQty"),
     rentPrice: formData.get("rentPrice"),
     warehouseLocation: formData.get("warehouseLocation"),
@@ -261,6 +273,7 @@ export async function updateEquipmentFromForm(
     id: formData.get("id"),
     name: formData.get("name"),
     category: formData.get("category"),
+    newCategory: formData.get("newCategory"),
     totalQty: formData.get("totalQty"),
     rentPrice: formData.get("rentPrice"),
     warehouseLocation: formData.get("warehouseLocation"),

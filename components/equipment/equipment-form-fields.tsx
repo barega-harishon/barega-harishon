@@ -61,6 +61,17 @@ export function EquipmentFormFields({ defaultValues }: EquipmentFormFieldsProps)
             </option>
           ) : null}
         </select>
+        <p className="text-xs text-muted-foreground">אפשר לבחור מהרשימה או להגדיר קטגוריה חדשה בשדה הבא.</p>
+      </div>
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium" htmlFor="newCategory">
+          קטגוריה חדשה (אופציונלי)
+        </label>
+        <Input
+          id="newCategory"
+          name="newCategory"
+          placeholder="לדוגמה: מחסומים"
+        />
       </div>
       <div className="space-y-1.5">
         <label className="text-sm font-medium" htmlFor="totalQty">

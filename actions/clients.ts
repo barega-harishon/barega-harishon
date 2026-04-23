@@ -3,8 +3,10 @@
 import * as XLSX from "xlsx";
 import { z } from "zod";
 
+import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { getSafeClientErrorMessage, toServerError } from "@/lib/errors";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { isOfficeOrAdminRole } from "@/types/app-role";
 import type { ActionResult } from "@/types/common";
 import type { ClientDetailRow, ClientListRow } from "@/types/clients";
 import { sanitizeText } from "@/utils/sanitize";
