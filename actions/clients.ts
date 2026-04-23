@@ -1,5 +1,6 @@
 "use server";
 
+import * as XLSX from "xlsx";
 import { z } from "zod";
 
 import { getSafeClientErrorMessage, toServerError } from "@/lib/errors";
@@ -318,4 +319,231 @@ export async function lookupExistingClient(
     matches: matches.length,
   });
   return { matches };
+}
+
+type CsvRow = Record<string, string>;
+
+function parseCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        cur += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (ch === "," && !inQuotes) {
+      out.push(cur);
+      cur = "";
+      continue;
+    }
+    cur += ch;
+  }
+  out.push(cur);
+  return out.map((v) => v.trim());
+}
+
+function parseCsv(text: string): CsvRow[] {
+  const lines = text
+    .replace(/^\uFEFF/, "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+  if (lines.length < 2) {
+    return [];
+  }
+  const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
+  return lines.slice(1).map((line) => {
+    const cols = parseCsvLine(line);
+    const row: CsvRow = {};
+    header.forEach((h, idx) => {
+      row[h] = cols[idx] ?? "";
+    });
+    return row;
+  });
+}
+
+function normalizeHeader(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+const CLIENT_IMPORT_KEY_ALIASES: Record<string, string> = (() => {
+  const raw: Record<string, string> = {
+    name: "name",
+    שם: "name",
+    "שם לקוח": "name",
+    phone: "phone",
+    טלפון: "phone",
+    email: "email",
+    "דוא\"ל": "email",
+    "דואל": "email",
+    address: "address",
+    כתובת: "address",
+    national_id: "nationalId",
+    nationalid: "nationalId",
+    nationalidpassport: "nationalId",
+    "חפ/תז": "nationalId",
+    "ח.פ/ת.ז": "nationalId",
+    "ח\"פ/ת\"ז": "nationalId",
+    "ח\"פ": "nationalId",
+    תז: "nationalId",
+    "ת\"ז": "nationalId",
+    "ת.ז": "nationalId",
+  };
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    out[normalizeHeader(k.replace(/[\u200e\u200f]/g, ""))] = v;
+  }
+  return out;
+})();
+
+function canonicalClientImportRow(raw: CsvRow): CsvRow {
+  const out: CsvRow = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const nk = normalizeHeader(String(k).replace(/[\u200e\u200f]/g, ""));
+    const canon = CLIENT_IMPORT_KEY_ALIASES[nk] ?? nk;
+    const val = String(v ?? "").trim();
+    if (!val) {
+      continue;
+    }
+    if (!out[canon]) {
+      out[canon] = val;
+    }
+  }
+  return out;
+}
+
+function parseXlsx(buffer: ArrayBuffer): CsvRow[] {
+  const workbook = XLSX.read(buffer, { type: "array" });
+  const firstSheetName = workbook.SheetNames[0];
+  if (!firstSheetName) {
+    return [];
+  }
+  const sheet = workbook.Sheets[firstSheetName];
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+    defval: "",
+  });
+  return rows.map((raw) => {
+    const out: CsvRow = {};
+    for (const [k, v] of Object.entries(raw)) {
+      out[normalizeHeader(k)] = String(v ?? "").trim();
+    }
+    return out;
+  });
+}
+
+function isCsvRowAllEmpty(raw: CsvRow): boolean {
+  return Object.values(raw).every((v) => !String(v ?? "").trim());
+}
+
+const clientImportRowSchema = z.object({
+  name: z.string().min(2).max(120),
+  phone: z.string().max(40).optional(),
+  email: z.string().email("דוא\"ל לא תקין").max(120).optional().or(z.literal("")),
+  address: z.string().max(500).optional(),
+  nationalId: z.string().max(20).optional(),
+});
+
+export interface ClientImportIssue {
+  row: number;
+  column: string;
+  value: string;
+  message: string;
+}
+
+export async function importClientsFromCsvForm(
+  _prev: ActionResult<{ imported: number; failed: number; issues: ClientImportIssue[] }> | null,
+  formData: FormData,
+): Promise<ActionResult<{ imported: number; failed: number; issues: ClientImportIssue[] }> | null> {
+  try {
+    const roles = await getCurrentAppRoles();
+    if (!isOfficeOrAdminRole(roles)) {
+      return { success: false, message: "אין הרשאה לייבוא לקוחות." };
+    }
+
+    const file = formData.get("file");
+    if (!(file instanceof File) || file.size === 0) {
+      return { success: false, message: "נא לבחור קובץ לייבוא." };
+    }
+    const lowerName = file.name.toLowerCase();
+    const isXlsx = lowerName.endsWith(".xlsx");
+    const isCsv = lowerName.endsWith(".csv");
+    if (!isXlsx && !isCsv) {
+      return { success: false, message: "פורמט לא נתמך. נא להעלות CSV או XLSX." };
+    }
+
+    const rows = isXlsx ? parseXlsx(await file.arrayBuffer()) : parseCsv(await file.text());
+    if (rows.length === 0) {
+      return { success: false, message: "הקובץ ריק או לא בפורמט תבנית תקין." };
+    }
+
+    const supabase = await createServerSupabaseClient();
+    let imported = 0;
+    const issues: ClientImportIssue[] = [];
+
+    for (let i = 0; i < rows.length; i += 1) {
+      const raw = rows[i];
+      if (isCsvRowAllEmpty(raw)) {
+        continue;
+      }
+      const mapped = canonicalClientImportRow(raw);
+      const parsed = clientImportRowSchema.safeParse(mapped);
+      if (!parsed.success) {
+        const first = parsed.error.issues[0];
+        issues.push({
+          row: i + 2,
+          column: first?.path?.length ? String(first.path[0]) : "unknown",
+          value: first?.path?.length ? String(mapped[String(first.path[0])] ?? "") : "",
+          message: first?.message ?? "נתונים חסרים או שגויים.",
+        });
+        continue;
+      }
+
+      const data = parsed.data;
+      const payload = {
+        name: sanitizeText(data.name),
+        phone: normalizePhone(data.phone) || null,
+        email: data.email ? sanitizeText(data.email.trim().toLowerCase()) : null,
+        address: data.address ? sanitizeText(data.address) : null,
+        national_id: normalizeNationalId(data.nationalId) || null,
+      };
+
+      const { error } = await supabase.from("clients").insert(payload);
+      if (error) {
+        issues.push({
+          row: i + 2,
+          column: "name",
+          value: data.name,
+          message: "שמירת הלקוח נכשלה (ייתכן כפילות או הרשאה חסרה).",
+        });
+        continue;
+      }
+
+      imported += 1;
+    }
+
+    const failed = issues.length;
+    if (failed > 0) {
+      return {
+        success: false,
+        message: `הייבוא הסתיים עם שגיאות: ${imported} הצליחו, ${failed} נכשלו.`,
+        data: { imported, failed, issues },
+      };
+    }
+
+    return {
+      success: true,
+      message: `הייבוא הסתיים בהצלחה. נקלטו ${imported} לקוחות.`,
+      data: { imported, failed: 0, issues: [] },
+    };
+  } catch (error) {
+    console.error("importClientsFromCsvForm failed", toServerError(error));
+    return { success: false, message: getSafeClientErrorMessage() };
+  }
 }

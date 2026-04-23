@@ -46,6 +46,18 @@ export default async function EquipmentPage({
     ...(hasUncategorized ? [{ value: EQUIPMENT_UNCATEGORIZED, label: "ללא קטגוריה" }] : []),
     ...categories.map((cat) => ({ value: cat, label: cat })),
   ];
+  const sharedColumns = (
+    <colgroup>
+      <col className="w-[20%]" />
+      <col className="w-[12%]" />
+      <col className="w-[9%]" />
+      <col className="w-[9%]" />
+      <col className="w-[9%]" />
+      <col className="w-[12%]" />
+      <col className="w-[17%]" />
+      <col className="w-[12%]" />
+    </colgroup>
+  );
 
   return (
     <main className="container-page py-8">
@@ -189,6 +201,7 @@ export default async function EquipmentPage({
             headerContent={
               <div className="mb-2">
                 <table className="w-full border-collapse text-start text-sm">
+                  {sharedColumns}
                   <thead className="border-b border-border bg-muted/50">
                     <tr>
                       <th className="px-4 py-3 font-medium">שם</th>
@@ -210,6 +223,7 @@ export default async function EquipmentPage({
               count: group.items.length,
               content: (
                 <table className="w-full border-collapse text-start text-sm">
+                  {sharedColumns}
                   <tbody>
                     {group.items.map((row) => (
                       <tr

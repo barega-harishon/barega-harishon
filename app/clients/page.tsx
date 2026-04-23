@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { Download, FileUp } from "lucide-react";
 
 import { listClientsWithProjectStats } from "@/actions/clients";
+import { ClientImportForm } from "@/components/clients/client-import-form";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Modal, ModalContent, ModalHeader, ModalTitle, ModalTrigger } from "@/components/ui/modal";
 import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { isOfficeOrAdminRole } from "@/types/app-role";
 
@@ -43,6 +46,30 @@ export default async function ClientsPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {canCreate ? (
+            <Modal>
+              <ModalTrigger asChild>
+                <Button className={selectorButtonClass(false)} variant="outline">
+                  <FileUp className="me-1 h-4 w-4" />
+                  ייבוא לקוחות
+                </Button>
+              </ModalTrigger>
+              <ModalContent className="w-[min(96vw,56rem)]">
+                <ModalHeader>
+                  <ModalTitle>ייבוא לקוחות</ModalTitle>
+                </ModalHeader>
+                <div className="space-y-3">
+                  <Button asChild size="sm" type="button" variant="outline">
+                    <Link className="inline-flex items-center gap-1.5" href="/api/clients/template">
+                      <Download className="h-4 w-4" />
+                      הורדת תבנית אקסל
+                    </Link>
+                  </Button>
+                  <ClientImportForm />
+                </div>
+              </ModalContent>
+            </Modal>
+          ) : null}
           {canCreate ? (
             <Button asChild className={selectorButtonClass(true)} variant="outline">
               <Link href="/clients/new">לקוח חדש</Link>
