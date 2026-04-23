@@ -72,9 +72,9 @@ export async function listEquipmentOptions(): Promise<EquipmentOption[]> {
   return data as EquipmentOption[];
 }
 
-export async function getEquipmentAvailabilityMap(): Promise<
-  Record<string, EquipmentAvailability>
-> {
+export async function getEquipmentAvailabilityMap(
+  referenceDate?: Date,
+): Promise<Record<string, EquipmentAvailability>> {
   const supabase = await createServerSupabaseClient();
 
   const [{ data: equipment }, { data: lines }, { data: warehousePicks }] = await Promise.all([
@@ -86,12 +86,12 @@ export async function getEquipmentAvailabilityMap(): Promise<
       ),
     supabase
       .from("equipment_pick_transactions")
-      .select("equipment_id, quantity")
+      .select("equipment_id, quantity, tx_type, adjustment_direction")
       .eq("source", "warehouse"),
   ]);
 
   const allocated: Record<string, number> = {};
-  const dashboardWindow = utcCalendarDayWindowMs();
+  const dashboardWindow = utcCalendarDayWindowMs(referenceDate ?? new Date());
 
   for (const line of lines ?? []) {
     const row = line as {
@@ -113,13 +113,28 @@ export async function getEquipmentAvailabilityMap(): Promise<
   for (const row of warehousePicks ?? []) {
     const id = row.equipment_id as string;
     const qty = Number(row.quantity);
-    warehousePickedByEquipment[id] =
-      (warehousePickedByEquipment[id] ?? 0) + (Number.isNaN(qty) ? 0 : qty);
+    if (Number.isNaN(qty)) {
+      continue;
+    }
+    const txType = ((row as { tx_type?: string }).tx_type ?? "pick") as
+      | "pick"
+      | "return"
+      | "adjustment";
+    const adjustmentDirection = (row as { adjustment_direction?: string }).adjustment_direction;
+    const signed =
+      txType === "return"
+        ? qty
+        : txType === "adjustment"
+          ? adjustmentDirection === "in"
+            ? qty
+            : -qty
+          : -qty;
+    warehousePickedByEquipment[id] = (warehousePickedByEquipment[id] ?? 0) + signed;
   }
 
   for (const item of equipment ?? []) {
     const id = item.id as string;
-    const totalQty = Math.max(0, Number(item.total_qty) - (warehousePickedByEquipment[id] ?? 0));
+    const totalQty = Math.max(0, Number(item.total_qty) + (warehousePickedByEquipment[id] ?? 0));
     const used = allocated[id] ?? 0;
     map[id] = {
       totalQty,

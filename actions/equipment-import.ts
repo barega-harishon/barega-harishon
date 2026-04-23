@@ -154,10 +154,17 @@ const rowSchema = z.object({
   note: z.string().max(2000).optional(),
 });
 
+export interface EquipmentImportIssue {
+  row: number;
+  column: string;
+  value: string;
+  message: string;
+}
+
 export async function importEquipmentFromCsvForm(
-  _prev: ActionResult<{ imported: number }> | null,
+  _prev: ActionResult<{ imported: number; failed: number; issues: EquipmentImportIssue[] }> | null,
   formData: FormData,
-): Promise<ActionResult<{ imported: number }> | null> {
+): Promise<ActionResult<{ imported: number; failed: number; issues: EquipmentImportIssue[] }> | null> {
   try {
     const roles = await getCurrentAppRoles();
     if (!isOfficeOrAdminRole(roles) && !roles.includes("warehouse")) {
@@ -188,6 +195,7 @@ export async function importEquipmentFromCsvForm(
     } = await supabase.auth.getUser();
 
     let imported = 0;
+    const issues: EquipmentImportIssue[] = [];
     for (let i = 0; i < rows.length; i += 1) {
       const raw = rows[i];
       if (isCsvRowAllEmpty(raw)) {
@@ -198,11 +206,16 @@ export async function importEquipmentFromCsvForm(
       if (!parsed.success) {
         const first = parsed.error.issues[0];
         const spreadsheetRow = i + 2;
-        const hint = first?.path?.length ? ` (${String(first.path[0])})` : "";
-        return {
-          success: false,
-          message: `שורה ${spreadsheetRow} בקובץ לא תקינה${hint}: ${first?.message ?? "נתונים חסרים."}`,
-        };
+        issues.push({
+          row: spreadsheetRow,
+          column: first?.path?.length ? String(first.path[0]) : "unknown",
+          value:
+            first?.path?.length && mapped[String(first.path[0])] !== undefined
+              ? String(mapped[String(first.path[0])])
+              : "",
+          message: first?.message ?? "נתונים חסרים או שגויים.",
+        });
+        continue;
       }
       const d = parsed.data;
       const categoryNorm = normalizeImportedEquipmentCategory(sanitizeText(d.category ?? ""));
@@ -219,7 +232,13 @@ export async function importEquipmentFromCsvForm(
         .select("id")
         .single();
       if (insErr || !inserted) {
-        return { success: false, message: getSafeClientErrorMessage() };
+        issues.push({
+          row: i + 2,
+          column: "name",
+          value: d.name,
+          message: "שמירת הפריט נכשלה (ייתכן כפילות או הרשאה חסרה).",
+        });
+        continue;
       }
       imported += 1;
 
@@ -235,15 +254,29 @@ export async function importEquipmentFromCsvForm(
           created_by: user?.id ?? null,
         });
         if (batchErr) {
-          return { success: false, message: "הציוד נוצר, אך הוספת אצוות מהרשומה נכשלה." };
+          issues.push({
+            row: i + 2,
+            column: "purchased_at/purchase_quantity/unit_cost",
+            value: `${d.purchased_at ?? ""} | ${String(d.purchase_quantity ?? "")} | ${String(d.unit_cost ?? "")}`,
+            message: "הפריט נקלט, אך יצירת אצווה נכשלה.",
+          });
         }
       }
+    }
+
+    const failed = issues.length;
+    if (failed > 0) {
+      return {
+        success: false,
+        message: `הייבוא הסתיים עם שגיאות: ${imported} הצליחו, ${failed} נכשלו.`,
+        data: { imported, failed, issues },
+      };
     }
 
     return {
       success: true,
       message: `הייבוא הסתיים בהצלחה. נקלטו ${imported} פריטי ציוד.`,
-      data: { imported },
+      data: { imported, failed: 0, issues: [] },
     };
   } catch (error) {
     console.error("importEquipmentFromCsvForm failed", toServerError(error));

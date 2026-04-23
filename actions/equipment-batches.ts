@@ -8,9 +8,11 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { hasAnyAppRole, isOfficeOrAdminRole } from "@/types/app-role";
 import type { ActionResult } from "@/types/common";
 import type {
+  EquipmentAdjustmentDirection,
   EquipmentBatchAvailabilityRow,
   EquipmentPickSelectionInput,
   EquipmentPurchaseBatchRow,
+  EquipmentStockTxType,
 } from "@/types/equipment-batches";
 
 const batchSchema = z.object({
@@ -35,6 +37,8 @@ const pickPayloadSchema = z.object({
   equipmentId: z.string().uuid(),
   projectId: z.string().uuid().optional(),
   source: z.enum(["project", "warehouse"]),
+  txType: z.enum(["pick", "return", "adjustment"]).default("pick"),
+  adjustmentDirection: z.enum(["in", "out"]).optional(),
   note: z.string().max(1000).optional(),
   selections: z.array(
     z.object({
@@ -44,6 +48,20 @@ const pickPayloadSchema = z.object({
     }),
   ),
 });
+
+function signedQtyFromTx(
+  quantity: number,
+  txType: EquipmentStockTxType,
+  adjustmentDirection?: EquipmentAdjustmentDirection | null,
+): number {
+  if (txType === "return") {
+    return Math.abs(quantity);
+  }
+  if (txType === "adjustment") {
+    return adjustmentDirection === "in" ? Math.abs(quantity) : -Math.abs(quantity);
+  }
+  return -Math.abs(quantity);
+}
 
 function normalizeDateToIsoDate(value: string): string | null {
   const d = new Date(value);
@@ -87,22 +105,30 @@ export async function listEquipmentBatchAvailability(
   const batchIds = batches.map((b) => b.id);
   const { data: tx } = await supabase
     .from("equipment_pick_transactions")
-    .select("batch_id, quantity")
+    .select("batch_id, quantity, tx_type, adjustment_direction")
     .in("batch_id", batchIds);
 
   const byBatch = new Map<string, number>();
   for (const row of tx ?? []) {
     const key = row.batch_id as string;
     const q = Number(row.quantity);
-    byBatch.set(key, (byBatch.get(key) ?? 0) + (Number.isNaN(q) ? 0 : q));
+    const signed = Number.isNaN(q)
+      ? 0
+      : signedQtyFromTx(
+          q,
+          (row.tx_type as EquipmentStockTxType | null) ?? "pick",
+          (row.adjustment_direction as EquipmentAdjustmentDirection | null) ?? undefined,
+        );
+    byBatch.set(key, (byBatch.get(key) ?? 0) + signed);
   }
 
   return batches.map((b) => {
-    const picked = byBatch.get(b.id) ?? 0;
+    const signedBalance = byBatch.get(b.id) ?? 0;
+    const netPicked = Math.max(0, -signedBalance);
     return {
       ...b,
-      picked_qty: picked,
-      remaining_qty: Math.max(0, Number(b.quantity) - picked),
+      picked_qty: netPicked,
+      remaining_qty: Math.max(0, Number(b.quantity) + signedBalance),
     };
   });
 }
@@ -251,7 +277,11 @@ export async function createEquipmentPickTransactions(
   }
   try {
     const roles = await getCurrentAppRoles();
-    if (parsed.data.source === "warehouse") {
+    if (parsed.data.txType === "return" || parsed.data.txType === "adjustment") {
+      if (!(isOfficeOrAdminRole(roles) || roles.includes("warehouse"))) {
+        return { success: false, message: "אין הרשאה לפעולת החזרה/התאמה." };
+      }
+    } else if (parsed.data.source === "warehouse") {
       if (!(isOfficeOrAdminRole(roles) || roles.includes("warehouse"))) {
         return { success: false, message: "אין הרשאה לליקוט גלובלי." };
       }
@@ -263,11 +293,26 @@ export async function createEquipmentPickTransactions(
     if (selected.length === 0) {
       return { success: false, message: "נא לבחור לפחות אצווה אחת לליקוט." };
     }
-    if (parsed.data.source === "project" && !parsed.data.projectId) {
+    if (
+      (parsed.data.source === "project" || parsed.data.txType === "return") &&
+      !parsed.data.projectId
+    ) {
       return { success: false, message: "ליקוט פרויקט דורש מזהה פרויקט." };
     }
-    if (parsed.data.source === "warehouse" && parsed.data.projectId) {
+    if (
+      (parsed.data.source === "warehouse" || parsed.data.txType === "adjustment") &&
+      parsed.data.projectId
+    ) {
       return { success: false, message: "בליקוט גלובלי אין פרויקט משויך." };
+    }
+    if (parsed.data.txType === "return" && parsed.data.source !== "project") {
+      return { success: false, message: "החזרה מוגדרת כפעולת פרויקט." };
+    }
+    if (parsed.data.txType === "adjustment" && parsed.data.source !== "warehouse") {
+      return { success: false, message: "התאמת ספירה היא פעולת מחסן." };
+    }
+    if (parsed.data.txType === "adjustment" && !parsed.data.adjustmentDirection) {
+      return { success: false, message: "יש לבחור כיוון התאמה (הגדלה/הפחתה)." };
     }
 
     const supabase = await createServerSupabaseClient();
@@ -284,13 +329,16 @@ export async function createEquipmentPickTransactions(
       if (!row) {
         return { success: false, message: "נמצאה אצווה לא תקינה." };
       }
-      if (s.quantity > row.remaining_qty) {
-        return { success: false, message: `לא ניתן ללַקֵט יותר מהיתרה באצווה מתאריך ${row.purchased_at}.` };
+      if (parsed.data.txType === "pick" && s.quantity > row.remaining_qty) {
+        return {
+          success: false,
+          message: `לא ניתן ללַקֵט יותר מהיתרה באצווה מתאריך ${row.purchased_at}.`,
+        };
       }
       totalPickQty += s.quantity;
     }
 
-    if (parsed.data.source === "project" && parsed.data.projectId) {
+    if (parsed.data.txType === "pick" && parsed.data.source === "project" && parsed.data.projectId) {
       const { data: line } = await supabase
         .from("project_equipment")
         .select("quantity, picked_qty")
@@ -309,12 +357,44 @@ export async function createEquipmentPickTransactions(
       }
     }
 
+    if (parsed.data.txType === "return" && parsed.data.projectId) {
+      const { data: projectTx } = await supabase
+        .from("equipment_pick_transactions")
+        .select("batch_id, quantity, tx_type")
+        .eq("project_id", parsed.data.projectId)
+        .eq("equipment_id", parsed.data.equipmentId)
+        .eq("source", "project")
+        .in("batch_id", selected.map((s) => s.batchId));
+
+      const netByBatch = new Map<string, number>();
+      for (const row of projectTx ?? []) {
+        const batchId = String(row.batch_id);
+        const qty = Number(row.quantity);
+        const txType = (row.tx_type as EquipmentStockTxType | null) ?? "pick";
+        const signed = txType === "return" ? -Math.abs(qty) : Math.abs(qty);
+        netByBatch.set(batchId, (netByBatch.get(batchId) ?? 0) + signed);
+      }
+      for (const s of selected) {
+        const returnable = Math.max(0, netByBatch.get(s.batchId) ?? 0);
+        if (s.quantity > returnable) {
+          return { success: false, message: "כמות ההחזרה חורגת מהכמות שנלקטה לפרויקט באצווה זו." };
+        }
+      }
+    }
+
     const rows = selected.map((s) => ({
       equipment_id: parsed.data.equipmentId,
-      project_id: parsed.data.source === "project" ? parsed.data.projectId ?? null : null,
-      batch_id: s.batchId,
+      project_id:
+        parsed.data.txType === "adjustment"
+          ? null
+          : parsed.data.source === "project"
+            ? parsed.data.projectId ?? null
+            : null,
+      batch_id: parsed.data.txType === "adjustment" ? null : s.batchId,
       quantity: s.quantity,
       source: parsed.data.source,
+      tx_type: parsed.data.txType,
+      adjustment_direction: parsed.data.txType === "adjustment" ? parsed.data.adjustmentDirection : null,
       note: parsed.data.note?.trim() || null,
       picked_by: user?.id ?? null,
     }));
@@ -325,7 +405,12 @@ export async function createEquipmentPickTransactions(
 
     return {
       success: true,
-      message: "הליקוט נשמר בהצלחה.",
+      message:
+        parsed.data.txType === "return"
+          ? "ההחזרה נשמרה בהצלחה."
+          : parsed.data.txType === "adjustment"
+            ? "התאמת המלאי נשמרה בהצלחה."
+            : "הליקוט נשמר בהצלחה.",
       data: { inserted: rows.length },
     };
   } catch (error) {

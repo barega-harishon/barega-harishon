@@ -6,10 +6,27 @@ import { getEquipmentAvailabilityMap } from "@/actions/project-equipment";
 
 export const dynamic = "force-dynamic";
 
-type ExportKind = "realtime" | "company";
+type ExportKind = "realtime" | "company" | "by-date";
 
 function parseKind(raw: string | null): ExportKind {
-  return raw === "company" ? "company" : "realtime";
+  if (raw === "company") {
+    return "company";
+  }
+  if (raw === "by-date") {
+    return "by-date";
+  }
+  return "realtime";
+}
+
+function parseDateParam(raw: string | null): Date | null {
+  if (!raw) {
+    return null;
+  }
+  const d = new Date(`${raw}T12:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) {
+    return null;
+  }
+  return d;
 }
 
 export async function GET(request: Request) {
@@ -23,6 +40,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const kind = parseKind(url.searchParams.get("kind"));
+  const requestedDate = parseDateParam(url.searchParams.get("date"));
   const supabase = await createServerSupabaseClient();
 
   const { data: equipment } = await supabase
@@ -31,10 +49,12 @@ export async function GET(request: Request) {
     .order("name", { ascending: true });
 
   const rows = equipment ?? [];
-  const day = new Date().toISOString().slice(0, 10);
+  const day = (requestedDate ?? new Date()).toISOString().slice(0, 10);
 
-  if (kind === "realtime") {
-    const availability = await getEquipmentAvailabilityMap();
+  if (kind === "realtime" || kind === "by-date") {
+    const availability = await getEquipmentAvailabilityMap(
+      kind === "by-date" ? requestedDate ?? new Date() : undefined,
+    );
     const header = buildCsvRow([
       "מזהה פריט",
       "שם",
@@ -62,7 +82,9 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="inventory-realtime-${day}.csv"`,
+        "Content-Disposition": `attachment; filename="${
+          kind === "by-date" ? "inventory-by-date" : "inventory-realtime"
+        }-${day}.csv"`,
         "Cache-Control": "private, no-store",
       },
     });

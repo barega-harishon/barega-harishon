@@ -20,3 +20,6 @@ export interface EquipmentPickSelectionInput {
   quantity: number;
   checked: boolean;
 }
+
+export type EquipmentStockTxType = "pick" | "return" | "adjustment";
+export type EquipmentAdjustmentDirection = "in" | "out";

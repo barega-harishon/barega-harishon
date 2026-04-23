@@ -12,6 +12,7 @@ import { formatCurrencyIl } from "@/utils/money";
 interface BatchPickingFormProps {
   equipmentId: string;
   source: "project" | "warehouse";
+  txType?: "pick" | "return";
   projectId?: string;
   title: string;
   batches: EquipmentBatchAvailabilityRow[];
@@ -21,6 +22,7 @@ interface BatchPickingFormProps {
 export function BatchPickingForm({
   equipmentId,
   source,
+  txType = "pick",
   projectId,
   title,
   batches,
@@ -52,7 +54,26 @@ export function BatchPickingForm({
   }
 
   function setBatchQty(batchId: string, value: number) {
-    setQty((prev) => ({ ...prev, [batchId]: Number.isFinite(value) ? value : 0 }));
+    setQty((prev) => ({ ...prev, [batchId]: Number.isFinite(value) ? Math.max(0, value) : 0 }));
+  }
+
+  function selectAllWithMax() {
+    const nextSelected: Record<string, boolean> = {};
+    const nextQty: Record<string, number> = {};
+    for (const batch of batches) {
+      if (batch.remaining_qty <= 0) {
+        continue;
+      }
+      nextSelected[batch.id] = true;
+      nextQty[batch.id] = batch.remaining_qty;
+    }
+    setSelected(nextSelected);
+    setQty(nextQty);
+  }
+
+  function clearSelection() {
+    setSelected({});
+    setQty({});
   }
 
   function onSubmit() {
@@ -69,8 +90,22 @@ export function BatchPickingForm({
       setError("נא לסמן לפחות אצווה אחת ולמלא כמות תקינה.");
       return;
     }
+    for (const selection of selections) {
+      if (!selection.checked) {
+        continue;
+      }
+      const batch = batches.find((b) => b.id === selection.batchId);
+      if (!batch) {
+        setError("נמצאה אצווה לא תקינה.");
+        return;
+      }
+      if (selection.quantity > batch.remaining_qty) {
+        setError(`כמות באצווה מתאריך ${new Date(batch.purchased_at).toLocaleDateString("he-IL")} חורגת מהיתרה.`);
+        return;
+      }
+    }
     if (typeof maxTotalQty === "number" && selectedTotal > maxTotalQty) {
-      setError("כמות הליקוט חורגת מהיתרה המותרת.");
+      setError(txType === "return" ? "כמות ההחזרה חורגת מהמותר." : "כמות הליקוט חורגת מהיתרה המותרת.");
       return;
     }
 
@@ -78,6 +113,7 @@ export function BatchPickingForm({
       const result = await createEquipmentPickTransactions({
         equipmentId,
         source,
+        txType,
         projectId,
         selections,
       });
@@ -106,6 +142,14 @@ export function BatchPickingForm({
         <p className="text-xs text-muted-foreground">אין אצוות זמינות לליקוט.</p>
       ) : (
         <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={selectAllWithMax} size="sm" type="button" variant="outline">
+              בחירת כל הזמין
+            </Button>
+            <Button onClick={clearSelection} size="sm" type="button" variant="ghost">
+              ניקוי בחירה
+            </Button>
+          </div>
           {batches.map((b) => (
             <div
               key={b.id}
@@ -130,18 +174,19 @@ export function BatchPickingForm({
                   </span>
                 </span>
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 sm:justify-end">
                 <span className="text-xs text-muted-foreground">כמות</span>
                 <Input
                   className="w-24"
                   disabled={!selected[b.id]}
+                  max={b.remaining_qty}
                   min={1}
                   onChange={(e) => setBatchQty(b.id, Number(e.target.value))}
                   type="number"
                   value={qty[b.id] ?? ""}
                 />
               </div>
-              <div className="flex items-center justify-end text-xs text-muted-foreground">
+              <div className="flex items-center text-xs text-muted-foreground sm:justify-end">
                 מקסימום {b.remaining_qty}
               </div>
             </div>
@@ -151,9 +196,9 @@ export function BatchPickingForm({
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       {success ? <p className="text-sm text-emerald-700 dark:text-emerald-400">{success}</p> : null}
-      <div className="flex justify-end">
-        <Button disabled={pending || batches.length === 0} onClick={onSubmit} type="button">
-          {pending ? "שומרים…" : "אישור ליקוט"}
+      <div className="flex justify-stretch sm:justify-end">
+        <Button className="w-full sm:w-auto" disabled={pending || batches.length === 0} onClick={onSubmit} type="button">
+          {pending ? "שומרים…" : txType === "return" ? "אישור החזרה" : "אישור ליקוט"}
         </Button>
       </div>
     </div>

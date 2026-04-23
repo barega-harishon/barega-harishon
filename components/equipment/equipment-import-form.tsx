@@ -15,6 +15,10 @@ export function EquipmentImportForm() {
     if (state?.success) {
       ref.current?.reset();
       router.refresh();
+      return;
+    }
+    if (!state?.success && (state?.data?.imported ?? 0) > 0) {
+      router.refresh();
     }
   }, [state, router]);
 
@@ -34,6 +38,19 @@ export function EquipmentImportForm() {
         {state && !state.success ? <p className="text-sm text-destructive">{state.message}</p> : null}
         {state?.success ? (
           <p className="text-sm text-emerald-700 dark:text-emerald-400">{state.message}</p>
+        ) : null}
+        {state?.data?.issues?.length ? (
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+            <p className="mb-2 text-xs font-semibold text-destructive">שגיאות לפי שורה</p>
+            <ul className="max-h-48 space-y-1 overflow-auto text-xs text-destructive">
+              {state.data.issues.map((issue, idx) => (
+                <li key={`${issue.row}-${issue.column}-${idx}`}>
+                  שורה {issue.row}, עמודה {issue.column}: {issue.message}
+                  {issue.value ? ` (ערך: ${issue.value})` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
         <Button disabled={pending} type="submit" variant="outline">
           {pending ? "מייבאים…" : "ייבוא קובץ"}

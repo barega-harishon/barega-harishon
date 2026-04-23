@@ -41,17 +41,42 @@ const equipmentUpdateSchema = equipmentCreateSchema.extend({
   id: z.string().uuid(),
 });
 
-export async function listEquipmentRows(categoryFilter?: string | null): Promise<EquipmentRow[]> {
+export async function listEquipmentRows(filter?: {
+  categories?: string | string[] | null;
+  search?: string | null;
+}): Promise<EquipmentRow[]> {
   const supabase = await createServerSupabaseClient();
   let query = supabase
     .from("equipment")
     .select("id, name, category, total_qty, rent_price, warehouse_location, created_at")
     .order("name", { ascending: true });
 
-  if (categoryFilter === EQUIPMENT_UNCATEGORIZED) {
-    query = query.eq("category", "");
-  } else if (categoryFilter && categoryFilter.trim() !== "") {
-    query = query.eq("category", categoryFilter.trim());
+  const categoryFilter = filter?.categories;
+  const filters = Array.isArray(categoryFilter)
+    ? categoryFilter.map((v) => v.trim()).filter(Boolean)
+    : typeof categoryFilter === "string" && categoryFilter.trim() !== ""
+      ? [categoryFilter.trim()]
+      : [];
+  if (filters.length > 0) {
+    const includesUncategorized = filters.includes(EQUIPMENT_UNCATEGORIZED);
+    const namedCats = filters.filter((f) => f !== EQUIPMENT_UNCATEGORIZED);
+    if (includesUncategorized && namedCats.length > 0) {
+      query = query.or(`category.eq.,category.in.(${namedCats.map((c) => `"${c}"`).join(",")})`);
+    } else if (includesUncategorized) {
+      query = query.eq("category", "");
+    } else if (namedCats.length === 1) {
+      query = query.eq("category", namedCats[0]);
+    } else if (namedCats.length > 1) {
+      query = query.in("category", namedCats);
+    }
+  }
+
+  const search = (filter?.search ?? "").trim().replace(/[%_,]/g, "").slice(0, 80);
+  if (search.length >= 2) {
+    const pattern = `%${search}%`;
+    query = query.or(
+      `name.ilike.${pattern},category.ilike.${pattern},warehouse_location.ilike.${pattern}`,
+    );
   }
 
   const { data, error } = await query;
@@ -93,10 +118,13 @@ export async function listEquipmentCategoryOptions(): Promise<{
 }
 
 export async function listEquipmentRowsWithAvailability(
-  categoryFilter?: string | null,
+  filter?: {
+    categories?: string | string[] | null;
+    search?: string | null;
+  },
 ): Promise<EquipmentRowWithAvailability[]> {
   const [rows, availability] = await Promise.all([
-    listEquipmentRows(categoryFilter),
+    listEquipmentRows(filter),
     getEquipmentAvailabilityMap(),
   ]);
 

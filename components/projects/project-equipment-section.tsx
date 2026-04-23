@@ -8,6 +8,8 @@ import {
   upsertProjectEquipmentLineFromForm,
 } from "@/actions/project-equipment";
 import { BatchPickingForm } from "@/components/equipment/batch-picking-form";
+import { EquipmentCategoryAccordion } from "@/components/equipment/equipment-category-accordion";
+import { groupEquipmentByCategory } from "@/lib/equipment/group-by-category";
 import type {
   EquipmentAvailability,
   EquipmentOption,
@@ -46,6 +48,7 @@ export function ProjectEquipmentSection({
     upsertProjectEquipmentLineFromForm,
     null,
   );
+  const groupedLines = groupEquipmentByCategory(lines, (line) => line.equipment?.category ?? "");
 
   useEffect(() => {
     if (lineState?.success) {
@@ -75,62 +78,83 @@ export function ProjectEquipmentSection({
       {lines.length === 0 ? (
         <p className="text-sm text-muted-foreground">אין עדיין ציוד משובץ לפרויקט.</p>
       ) : (
-        <div className="overflow-x-auto rounded-[var(--radius)] border border-border">
-          <table className="w-full min-w-[36rem] border-collapse text-start text-sm">
-            <thead className="border-b border-border bg-muted/50">
-              <tr>
-                <th className="px-3 py-2 font-medium">פריט</th>
-                <th className="px-3 py-2 font-medium">כמות</th>
-                <th className="px-3 py-2 font-medium">מקסימום לשורה</th>
-                <th className="px-3 py-2 font-medium">נלקט</th>
-                <th className="px-3 py-2 font-medium">פעולות</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lines.map((line) => {
-                const name = line.equipment?.name ?? "—";
-                const headroom = line.headroom;
-                const remainingNeed = Math.max(0, line.quantity - line.picked_qty);
-                const equipmentId = line.equipment_id;
-                const batches = batchAvailabilityByEquipment[equipmentId] ?? [];
+        <EquipmentCategoryAccordion
+          groups={groupedLines.map((group) => ({
+            key: group.key,
+            label: group.label,
+            count: group.items.length,
+            content: (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[36rem] border-collapse text-start text-sm">
+                  <thead className="border-b border-border bg-muted/50">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">פריט</th>
+                      <th className="px-3 py-2 font-medium">כמות</th>
+                      <th className="px-3 py-2 font-medium">מקסימום לשורה</th>
+                      <th className="px-3 py-2 font-medium">נלקט</th>
+                      <th className="px-3 py-2 font-medium">פעולות</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.items.map((line) => {
+                      const name = line.equipment?.name ?? "—";
+                      const headroom = line.headroom;
+                      const remainingNeed = Math.max(0, line.quantity - line.picked_qty);
+                      const equipmentId = line.equipment_id;
+                      const batches = batchAvailabilityByEquipment[equipmentId] ?? [];
 
-                return (
-                  <Fragment key={line.id}>
-                    <tr className="border-b border-border last:border-0">
-                      <td className="px-3 py-2 font-medium">{name}</td>
-                      <td className="px-3 py-2">{line.quantity}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{headroom}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{line.picked_qty}</td>
-                      <td className="px-3 py-2">
-                        <Button
-                          disabled={pending}
-                          onClick={() => handleRemove(line.id)}
-                          size="sm"
-                          type="button"
-                          variant="destructive"
-                        >
-                          הסרה
-                        </Button>
-                      </td>
-                    </tr>
-                    <tr className="border-b border-border bg-muted/10 last:border-0">
-                      <td className="px-3 py-3" colSpan={5}>
-                        <BatchPickingForm
-                          batches={batches}
-                          equipmentId={equipmentId}
-                          maxTotalQty={remainingNeed}
-                          projectId={projectId}
-                          source="project"
-                          title={`ליקוט מהמחסן לפריט: ${name}`}
-                        />
-                      </td>
-                    </tr>
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      return (
+                        <Fragment key={line.id}>
+                          <tr className="border-b border-border last:border-0">
+                            <td className="px-3 py-2 font-medium">{name}</td>
+                            <td className="px-3 py-2">{line.quantity}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{headroom}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{line.picked_qty}</td>
+                            <td className="px-3 py-2">
+                              <Button
+                                disabled={pending}
+                                onClick={() => handleRemove(line.id)}
+                                size="sm"
+                                type="button"
+                                variant="destructive"
+                              >
+                                הסרה
+                              </Button>
+                            </td>
+                          </tr>
+                          <tr className="border-b border-border bg-muted/10 last:border-0">
+                            <td className="px-3 py-3" colSpan={5}>
+                              <div className="grid gap-3 lg:grid-cols-2">
+                                <BatchPickingForm
+                                  batches={batches}
+                                  equipmentId={equipmentId}
+                                  maxTotalQty={remainingNeed}
+                                  projectId={projectId}
+                                  source="project"
+                                  title={`ליקוט מהמחסן לפריט: ${name}`}
+                                  txType="pick"
+                                />
+                                <BatchPickingForm
+                                  batches={batches}
+                                  equipmentId={equipmentId}
+                                  maxTotalQty={Math.max(0, line.picked_qty)}
+                                  projectId={projectId}
+                                  source="project"
+                                  title={`החזרה למחסן לפריט: ${name}`}
+                                  txType="return"
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ),
+          }))}
+        />
       )}
 
       <form action={lineAction} className="space-y-4 rounded-[var(--radius)] border border-border bg-muted/20 p-4">
