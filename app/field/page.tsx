@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { listMyAssignedProjectsBrief } from "@/actions/projects";
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { InstallPwaPanel } from "@/components/common/install-pwa-panel";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { Button } from "@/components/ui/button";
@@ -26,10 +27,12 @@ export default async function FieldHomePage() {
   return (
     <main className="container-page space-y-6 py-6">
       <div className="page-intro">
-        <h1 className="text-2xl font-semibold tracking-tight">שלום</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          כאן מרוכזים הפרויקטים שלכם, יומן אישי ודיווח שעות — מותאם לנייד ול־PWA.
-        </p>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">שלום</h1>
+          <HeaderInfoModal label="הנחיות אזור שטח">
+            <p>כאן מרוכזים הפרויקטים שלכם, יומן אישי ודיווח שעות — מותאם לנייד ול־PWA.</p>
+          </HeaderInfoModal>
+        </div>
         {showNonFieldRoleNote ? (
           <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">
             אתם מחוברים עם התפקידים: {roleLabelsHe}. איזור השטח מיועד בעיקר לצוות משובץ; ניתן להמשיך גם

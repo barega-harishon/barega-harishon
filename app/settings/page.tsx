@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { ArrowRightCircle } from "lucide-react";
 
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { DateStyleToggle } from "@/components/common/date-style-toggle";
 import { MotionToggle } from "@/components/common/motion-toggle";
 import { ProjectsDefaultViewToggle } from "@/components/common/projects-default-view-toggle";
@@ -27,14 +29,17 @@ export default async function SettingsPage() {
   return (
     <main className="container-page py-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">הגדרות</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            העדפות תצוגה אישיות למערכת.
-          </p>
+          <HeaderInfoModal label="הנחיות מסך הגדרות">
+            <p>העדפות תצוגה אישיות למערכת.</p>
+          </HeaderInfoModal>
         </div>
         <Button asChild variant="outline" size="sm">
-          <Link href="/dashboard">חזרה לדשבורד</Link>
+          <Link className="inline-flex items-center gap-1.5" href="/dashboard">
+            <ArrowRightCircle className="h-4 w-4" />
+            חזרה לדשבורד
+          </Link>
         </Button>
       </div>
 

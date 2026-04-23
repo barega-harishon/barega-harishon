@@ -107,11 +107,18 @@ function normalizeProjectSearchTerm(raw: string | undefined): string {
 
 function baseProjectsListQuery(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  filter?: { status?: ProjectStatus; clientId?: string },
+  filter?: { status?: ProjectStatus | ProjectStatus[]; clientId?: string },
 ) {
   let q = supabase.from("projects").select(PROJECT_LIST_SELECT);
-  if (filter?.status) {
-    q = q.eq("status", filter.status);
+  const statusList = Array.isArray(filter?.status)
+    ? filter?.status
+    : filter?.status
+      ? [filter.status]
+      : [];
+  if (statusList.length === 1) {
+    q = q.eq("status", statusList[0]);
+  } else if (statusList.length > 1) {
+    q = q.in("status", statusList);
   }
   if (filter?.clientId) {
     q = q.eq("client_id", filter.clientId);
@@ -120,21 +127,37 @@ function baseProjectsListQuery(
 }
 
 export async function listProjects(
-  filter?: { status?: ProjectStatus; clientId?: string; search?: string },
+  filter?: { status?: ProjectStatus | ProjectStatus[]; clientId?: string; search?: string },
 ): Promise<ProjectListRow[]> {
   const supabase = await createServerSupabaseClient();
   const roles = await getCurrentAppRoles();
   const canSeeIncoming = isOfficeOrAdminRole(roles);
-  if (filter?.status === "incoming" && !canSeeIncoming) {
+  const requestedStatuses = Array.isArray(filter?.status)
+    ? filter.status
+    : filter?.status
+      ? [filter.status]
+      : [];
+  if (
+    requestedStatuses.length > 0 &&
+    requestedStatuses.every((status) => status === "incoming") &&
+    !canSeeIncoming
+  ) {
     return [];
   }
+  const safeStatusFilter = canSeeIncoming
+    ? filter?.status
+    : requestedStatuses.filter((status) => status !== "incoming");
   const term = normalizeProjectSearchTerm(filter?.search);
+  const normalizedFilter = {
+    ...filter,
+    status: safeStatusFilter,
+  };
 
   if (term.length >= 2) {
     const pattern = `%${term}%`;
 
     if (filter?.clientId) {
-      const { data, error } = await baseProjectsListQuery(supabase, filter)
+      const { data, error } = await baseProjectsListQuery(supabase, normalizedFilter)
         .ilike("location_address", pattern)
         .order("created_at", { ascending: false });
 
@@ -156,14 +179,14 @@ export async function listProjects(
     const idList = (clientMatches ?? []).map((r) => r.id as string);
 
     const promises = [
-      baseProjectsListQuery(supabase, filter).ilike("location_address", pattern).order("created_at", {
+      baseProjectsListQuery(supabase, normalizedFilter).ilike("location_address", pattern).order("created_at", {
         ascending: false,
       }),
     ];
 
     if (idList.length > 0) {
       promises.push(
-        baseProjectsListQuery(supabase, filter).in("client_id", idList).order("created_at", {
+        baseProjectsListQuery(supabase, normalizedFilter).in("client_id", idList).order("created_at", {
           ascending: false,
         }),
       );
@@ -189,7 +212,7 @@ export async function listProjects(
     return attachClientNamesToProjectRows(supabase, merged);
   }
 
-  const { data, error } = await baseProjectsListQuery(supabase, filter).order("created_at", {
+  const { data, error } = await baseProjectsListQuery(supabase, normalizedFilter).order("created_at", {
     ascending: false,
   });
 
@@ -232,6 +255,10 @@ export async function getProjectById(id: string): Promise<ProjectDetailRow | nul
         cladding_color,
         carpet_cladding_color,
         fabric_cladding_color,
+        carpet_cladding_meters,
+        carpet_cladding_rolls,
+        fabric_cladding_meters,
+        fabric_cladding_rolls,
         notes,
         site_photo_paths,
         sketch_path,

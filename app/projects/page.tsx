@@ -1,19 +1,19 @@
 import Link from "next/link";
+import { CalendarDays, Filter, Info, KanbanSquare, List, Plus, Search } from "lucide-react";
 import { z } from "zod";
 
 import { getClientNameById } from "@/actions/clients";
 import { listProjects } from "@/actions/projects";
-import { selectorButtonClass } from "@/components/common/selector-button-styles";
+import { ProjectKanbanBoard } from "@/components/projects/project-kanban-board";
+import { ProjectTableRow } from "@/components/projects/project-table-row";
 import { Button } from "@/components/ui/button";
 import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { Input } from "@/components/ui/input";
-import { ProjectStatusBadge } from "@/components/projects/project-status-badge";
+import { Modal, ModalContent, ModalHeader, ModalTitle, ModalTrigger } from "@/components/ui/modal";
 import { getDateStylePreference } from "@/lib/date-style-server";
-import { isOfficeOrAdminRole } from "@/types/app-role";
-import type { ProjectListRow, ProjectStatus } from "@/types/projects";
+import { hasAnyAppRole, isOfficeOrAdminRole } from "@/types/app-role";
+import type { ProjectStatus } from "@/types/projects";
 import { PROJECT_STATUS_KANBAN_ORDER, PROJECT_STATUS_LABELS } from "@/types/projects";
-import { formatDateTimeByPreference } from "@/utils/date";
-import { formatCurrencyIl } from "@/utils/money";
 import { projectsListQuery } from "@/utils/projects-list-query";
 
 function isProjectStatus(value: string): value is ProjectStatus {
@@ -30,11 +30,10 @@ function isProjectStatus(value: string): value is ProjectStatus {
 
 export const dynamic = "force-dynamic";
 
-function parseStatusQuery(value: string | string[] | undefined): ProjectStatus | undefined {
-  if (!value || Array.isArray(value)) {
-    return undefined;
-  }
-  return isProjectStatus(value) ? value : undefined;
+function parseStatusQuery(value: string | string[] | undefined): ProjectStatus[] {
+  const raw = Array.isArray(value) ? value : value ? [value] : [];
+  const valid = raw.filter(isProjectStatus);
+  return [...new Set(valid)];
 }
 
 function parseClientQuery(value: string | string[] | undefined): string | undefined {
@@ -53,13 +52,46 @@ function parseSearchQuery(value: string | string[] | undefined): string | undefi
   return t.length > 0 ? t : undefined;
 }
 
+type ProjectsViewMode = "list" | "kanban";
+
+function parseViewQuery(value: string | string[] | undefined): ProjectsViewMode {
+  const v = Array.isArray(value) ? value[0] : value;
+  return v === "kanban" ? "kanban" : "list";
+}
+
+function projectsPageQuery(params: {
+  view?: ProjectsViewMode;
+  status?: ProjectStatus[];
+  clientId?: string;
+  q?: string;
+}): string {
+  const sp = new URLSearchParams();
+  if (params.view && params.view !== "list") {
+    sp.set("view", params.view);
+  }
+  for (const status of params.status ?? []) {
+    sp.append("status", status);
+  }
+  if (params.clientId) {
+    sp.set("client", params.clientId);
+  }
+  const trimmedQ = params.q?.trim();
+  if (trimmedQ) {
+    sp.set("q", trimmedQ);
+  }
+  const q = sp.toString();
+  return q ? `/projects?${q}` : "/projects";
+}
+
 export default async function ProjectsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; client?: string; q?: string }>;
+  searchParams: Promise<{ status?: string | string[]; client?: string; q?: string; view?: string | string[] }>;
 }) {
-  const { status: statusQ, client: clientQ, q: qQ } = await searchParams;
+  const { status: statusQ, client: clientQ, q: qQ, view: viewQ } = await searchParams;
   const statusFilter = parseStatusQuery(statusQ);
+  const primaryStatus = statusFilter.length === 1 ? statusFilter[0] : undefined;
+  const view = parseViewQuery(viewQ);
   const clientFilter = parseClientQuery(clientQ);
   const searchInput = parseSearchQuery(qQ);
   const searchForList =
@@ -67,7 +99,7 @@ export default async function ProjectsPage({
 
   const [rows, clientLabel, dateStyle, roles] = await Promise.all([
     listProjects({
-      ...(statusFilter ? { status: statusFilter } : {}),
+      ...(statusFilter.length > 0 ? { status: statusFilter } : {}),
       ...(clientFilter ? { clientId: clientFilter } : {}),
       ...(searchForList ? { search: searchForList } : {}),
     }),
@@ -76,6 +108,7 @@ export default async function ProjectsPage({
     getCurrentAppRoles(),
   ]);
   const canSeeIncoming = isOfficeOrAdminRole(roles);
+  const canChangeStatus = hasAnyAppRole(roles, ["admin", "office", "operations"]);
   const statusOptions = canSeeIncoming
     ? PROJECT_STATUS_KANBAN_ORDER
     : PROJECT_STATUS_KANBAN_ORDER.filter((s) => s !== "incoming");
@@ -83,106 +116,184 @@ export default async function ProjectsPage({
   return (
     <main className="container-page py-8">
       <div className="page-header-row mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">פרויקטים</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            רשימת פרויקטים לפי סטטוס ותאריכי אירוע. סינון לפי שלב, לקוח וחיפוש טקסט.
-            {clientFilter ? (
-              <>
-                {" "}
-                <span className="font-medium text-foreground">
-                  לקוח: {clientLabel ?? clientFilter.slice(0, 8) + "…"}
-                </span>
-                .{" "}
-                <Link
-                  className="underline"
-                  href={projectsListQuery({ status: statusFilter, q: searchInput })}
-                >
-                  בטל סינון לקוח
-                </Link>
-              </>
-            ) : null}
-            {searchInput && !searchForList ? (
-              <span className="mt-1 block text-amber-800 dark:text-amber-200">
-                לחיפוש בכתובת או בשם לקוח נא להקליד לפחות 2 תווים (לאחר סינון תווים מיוחדים).
-              </span>
-            ) : null}
-          </p>
+          <Modal>
+            <ModalTrigger asChild>
+              <Button
+                aria-label="הנחיות מסך פרויקטים"
+                className="h-auto w-auto rounded-none border-0 bg-transparent p-0 shadow-none hover:bg-transparent"
+                size="icon"
+                type="button"
+                variant="ghost"
+              >
+                <Info className="h-4 w-4" />
+              </Button>
+            </ModalTrigger>
+            <ModalContent>
+              <ModalHeader>
+                <ModalTitle>הנחיות</ModalTitle>
+              </ModalHeader>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>רשימת פרויקטים לפי סטטוס ותאריכי אירוע. אפשר לסנן לפי שלב ולבצע חיפוש טקסט.</p>
+                {clientFilter ? (
+                  <p>
+                    לקוח מסונן:{" "}
+                    <span className="font-medium text-foreground">
+                      {clientLabel ?? `${clientFilter.slice(0, 8)}…`}
+                    </span>
+                    .
+                  </p>
+                ) : null}
+                <p>לפרטים מלאים של פרויקט אפשר לפתוח את חלון התצוגה המהירה ואז לעבור לעמוד הפרויקט.</p>
+              </div>
+            </ModalContent>
+          </Modal>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild className={selectorButtonClass(true)} variant="outline">
-            <Link href="/projects">רשימה</Link>
-          </Button>
-          <Button asChild className={selectorButtonClass(false)} variant="outline">
-            <Link href="/projects/kanban">תצוגת קנבן</Link>
-          </Button>
-          <Button asChild className={selectorButtonClass(false)} variant="outline">
-            <Link href="/projects/calendar">יומן</Link>
-          </Button>
-          {canSeeIncoming ? (
-            <Button asChild className={selectorButtonClass(statusFilter === "incoming")} variant="outline">
-              <Link href={projectsListQuery({ status: "incoming", clientId: clientFilter, q: searchInput })}>
-                בקשות נכנסות
+        <div className="flex w-full flex-wrap items-center justify-between gap-2 lg:w-auto lg:flex-nowrap">
+          <div className="inline-flex overflow-hidden rounded-[var(--radius)] border border-border bg-card">
+            <Button
+              asChild
+              className={
+                view === "list"
+                  ? "rounded-none border-0 bg-primary/10 text-foreground shadow-[inset_0_2px_6px_rgba(15,23,42,0.12)]"
+                  : "rounded-none border-0 shadow-none"
+              }
+              size="sm"
+              variant={view === "list" ? "secondary" : "ghost"}
+            >
+              <Link
+                aria-current={view === "list" ? "page" : undefined}
+                className="inline-flex items-center gap-1.5 px-3"
+                href={projectsPageQuery({
+                  view: "list",
+                  status: statusFilter,
+                  clientId: clientFilter,
+                  q: searchInput,
+                })}
+              >
+                <List className="h-4 w-4" />
+                רשימה
               </Link>
             </Button>
-          ) : null}
-          <Button asChild>
-            <Link href="/projects/new">פרויקט חדש</Link>
-          </Button>
+            <Button
+              asChild
+              className={
+                view === "kanban"
+                  ? "rounded-none border-0 border-r border-border bg-primary/10 text-foreground shadow-[inset_0_2px_6px_rgba(15,23,42,0.12)]"
+                  : "rounded-none border-0 border-r border-border shadow-none"
+              }
+              size="sm"
+              variant={view === "kanban" ? "secondary" : "ghost"}
+            >
+              <Link
+                aria-current={view === "kanban" ? "page" : undefined}
+                className="inline-flex items-center gap-1.5 px-3"
+                href={projectsPageQuery({
+                  view: "kanban",
+                  status: statusFilter,
+                  clientId: clientFilter,
+                  q: searchInput,
+                })}
+              >
+                <KanbanSquare className="h-4 w-4" />
+                קנבן
+              </Link>
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link className="inline-flex items-center gap-1.5" href="/projects/calendar">
+                <CalendarDays className="h-4 w-4" />
+                יומן
+              </Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link className="inline-flex items-center gap-1.5" href="/projects/new">
+                <Plus className="h-4 w-4" />
+                פרויקט חדש
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 
-      <form
-        className="mb-4 flex max-w-xl flex-col gap-2 sm:flex-row sm:items-end"
-        method="get"
-        role="search"
-      >
-        {statusFilter ? <input name="status" type="hidden" value={statusFilter} /> : null}
-        {clientFilter ? <input name="client" type="hidden" value={clientFilter} /> : null}
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <label className="text-sm font-medium" htmlFor="projects-search-q">
-            חיפוש
-          </label>
-          <Input
-            defaultValue={searchInput ?? ""}
-            id="projects-search-q"
-            name="q"
-            placeholder="שם לקוח או כתובת אירוע…"
-            type="search"
-          />
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start sm:gap-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            רשימת פרויקטים
+            {primaryStatus
+              ? ` · ${PROJECT_STATUS_LABELS[primaryStatus]}`
+              : statusFilter.length > 1
+                ? " · מסונן"
+                : ""}
+          </h2>
+          <Modal>
+            <ModalTrigger asChild>
+              <Button size="sm" type="button" variant="outline">
+                <Filter className="me-1 h-4 w-4" />
+                סינון
+              </Button>
+            </ModalTrigger>
+            <ModalContent>
+              <ModalHeader>
+                <ModalTitle>סינון לפי סטטוס</ModalTitle>
+              </ModalHeader>
+              <form action="/projects" className="space-y-3" method="get">
+                {view !== "list" ? <input name="view" type="hidden" value={view} /> : null}
+                {clientFilter ? <input name="client" type="hidden" value={clientFilter} /> : null}
+                {searchInput ? <input name="q" type="hidden" value={searchInput} /> : null}
+                <fieldset className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
+                  <legend className="px-1 text-xs font-medium text-muted-foreground">בחירת סטטוסים</legend>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {statusOptions.map((status) => (
+                      <label
+                        className="flex cursor-pointer items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted/40"
+                        key={status}
+                      >
+                        <span>{PROJECT_STATUS_LABELS[status]}</span>
+                        <input
+                          className="h-4 w-4 accent-primary"
+                          defaultChecked={statusFilter.includes(status)}
+                          name="status"
+                          type="checkbox"
+                          value={status}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                <div className="flex gap-2">
+                  <Button size="sm" type="submit" variant="outline">
+                    <Filter className="me-1 h-4 w-4" />
+                    החל סינון
+                  </Button>
+                  <Button asChild size="sm" type="button" variant="ghost">
+                    <Link href={projectsListQuery({ clientId: clientFilter, q: searchInput })}>ניקוי</Link>
+                  </Button>
+                </div>
+              </form>
+            </ModalContent>
+          </Modal>
         </div>
-        <Button type="submit">חיפוש</Button>
-        {searchInput ? (
-          <Button asChild variant="outline">
-            <Link href={projectsListQuery({ status: statusFilter, clientId: clientFilter })}>
-              נקה
-            </Link>
-          </Button>
-        ) : null}
-      </form>
-
-      <div className="mb-4 flex flex-wrap gap-2 rounded-[var(--radius)] border border-border/70 bg-card/60 p-2">
-        <Button
-          asChild
-          size="sm"
-          className={selectorButtonClass(!statusFilter)}
-          variant="outline"
-        >
-          <Link href={projectsListQuery({ clientId: clientFilter, q: searchInput })}>הכל</Link>
-        </Button>
-        {statusOptions.map((s) => (
-          <Button
-            asChild
-            key={s}
-            size="sm"
-            className={selectorButtonClass(statusFilter === s)}
-            variant="outline"
-          >
-            <Link href={projectsListQuery({ status: s, clientId: clientFilter, q: searchInput })}>
-              {PROJECT_STATUS_LABELS[s]}
-            </Link>
-          </Button>
-        ))}
+        <form action="/projects" className="flex w-full items-center gap-2 sm:w-auto" method="get" role="search">
+          {view !== "list" ? <input name="view" type="hidden" value={view} /> : null}
+          {statusFilter.map((status) => (
+            <input key={status} name="status" type="hidden" value={status} />
+          ))}
+          {clientFilter ? <input name="client" type="hidden" value={clientFilter} /> : null}
+          <div className="relative w-full sm:w-auto">
+            <Search className="pointer-events-none absolute end-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="pe-8 sm:w-[20rem]"
+              defaultValue={searchInput ?? ""}
+              id="projects-search-q"
+              name="q"
+              placeholder="שם לקוח או כתובת אירוע…"
+              type="search"
+            />
+          </div>
+        </form>
       </div>
 
       {rows.length === 0 ? (
@@ -197,9 +308,9 @@ export default async function ProjectsPage({
                 נקה חיפוש
               </Link>
             </>
-          ) : clientFilter && statusFilter ? (
+          ) : clientFilter && statusFilter.length > 0 ? (
             <>
-              אין פרויקטים ללקוח זה בסטטוס &quot;{PROJECT_STATUS_LABELS[statusFilter]}&quot;.{" "}
+              אין פרויקטים ללקוח זה בסטטוסים שנבחרו.{" "}
               <Link
                 className="font-medium text-primary underline"
                 href={projectsListQuery({ clientId: clientFilter, q: searchInput })}
@@ -214,9 +325,9 @@ export default async function ProjectsPage({
                 חזרה ללקוחות
               </Link>
             </>
-          ) : statusFilter ? (
+          ) : statusFilter.length > 0 ? (
             <>
-              אין פרויקטים בסטטוס &quot;{PROJECT_STATUS_LABELS[statusFilter]}&quot;.{" "}
+              אין פרויקטים בסטטוסים שנבחרו.{" "}
               <Link
                 className="font-medium text-primary underline"
                 href={projectsListQuery({ clientId: clientFilter, q: searchInput })}
@@ -234,6 +345,15 @@ export default async function ProjectsPage({
             </>
           )}
         </div>
+      ) : view === "kanban" ? (
+        <div className="max-h-[66vh] overflow-hidden">
+          <ProjectKanbanBoard
+            allowIncomingStatus={canSeeIncoming}
+            canChangeStatus={canChangeStatus}
+            dateStyle={dateStyle}
+            projects={rows}
+          />
+        </div>
       ) : (
         <div className="overflow-x-auto rounded-[var(--radius)] border border-border bg-card">
           <table className="w-full min-w-[48rem] border-collapse text-start text-sm">
@@ -244,7 +364,6 @@ export default async function ProjectsPage({
                 <th className="px-4 py-3 font-medium">כתובת אירוע</th>
                 <th className="px-4 py-3 font-medium">תחילת אירוע</th>
                 <th className="px-4 py-3 font-medium">סכום</th>
-                <th className="px-4 py-3 font-medium">פעולות</th>
               </tr>
             </thead>
             <tbody>
@@ -256,37 +375,5 @@ export default async function ProjectsPage({
         </div>
       )}
     </main>
-  );
-}
-
-function ProjectTableRow({
-  row,
-  dateStyle,
-}: {
-  row: ProjectListRow;
-  dateStyle: "short" | "hebrew";
-}) {
-  const status: ProjectStatus = isProjectStatus(row.status) ? row.status : "quote";
-  const clientName = row.clients?.name ?? "—";
-
-  return (
-    <tr className="border-b border-border last:border-0">
-      <td className="px-4 py-3 font-medium">{clientName}</td>
-      <td className="px-4 py-3">
-        <ProjectStatusBadge status={status} />
-      </td>
-      <td className="max-w-[14rem] truncate px-4 py-3 text-muted-foreground">
-        {row.location_address ?? "—"}
-      </td>
-      <td className="px-4 py-3 text-muted-foreground">
-        {formatDateTimeByPreference(row.event_starts_at, dateStyle)}
-      </td>
-      <td className="px-4 py-3">{formatCurrencyIl(row.total_price)}</td>
-      <td className="px-4 py-3">
-        <Button asChild size="sm" variant="outline">
-          <Link href={`/projects/${row.id}`}>פתיחה</Link>
-        </Button>
-      </td>
-    </tr>
   );
 }

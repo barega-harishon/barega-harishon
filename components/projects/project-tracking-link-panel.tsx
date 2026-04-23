@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { Check, Copy } from "lucide-react";
 
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -33,15 +34,24 @@ export function ProjectTrackingLinkPanel({ trackingUrl }: ProjectTrackingLinkPan
   return (
     <Card>
       <CardHeader>
-        <CardTitle>קישור מעקב ללקוח</CardTitle>
-        <CardDescription>
-          דף ציבורי ללא התחברות — סטטוס, תאריכים ויתרה לתשלום. שמרו את הקישור במקום בטוח.
-        </CardDescription>
+        <div className="flex flex-wrap items-center gap-2">
+          <CardTitle>קישור מעקב ללקוח</CardTitle>
+          <HeaderInfoModal label="הנחיות קישור מעקב ללקוח">
+            <p>דף ציבורי ללא התחברות — סטטוס, תאריכים ויתרה לתשלום. שמרו את הקישור במקום בטוח.</p>
+          </HeaderInfoModal>
+        </div>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Input readOnly className="font-mono text-xs sm:flex-1" dir="ltr" value={trackingUrl} />
-        <Button className="shrink-0" onClick={copy} type="button" variant="outline">
-          {copied ? "הועתק" : "העתקה"}
+      <CardContent className="flex min-w-0 items-center gap-2">
+        <Input readOnly className="min-w-0 font-mono text-xs" dir="ltr" value={trackingUrl} />
+        <Button
+          aria-label={copied ? "הועתק" : "העתקת קישור"}
+          className="shrink-0"
+          onClick={copy}
+          size="icon"
+          type="button"
+          variant="outline"
+        >
+          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
         </Button>
       </CardContent>
     </Card>

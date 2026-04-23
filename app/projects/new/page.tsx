@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { ArrowRightCircle } from "lucide-react";
 
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { listClientsForSelect } from "@/actions/clients";
 import { NewProjectForm } from "@/components/projects/new-project-form";
 import { PublicInquiryLinkPanel } from "@/components/projects/public-inquiry-link-panel";
@@ -13,14 +15,17 @@ export default async function NewProjectPage() {
   return (
     <main className="container-page py-8">
       <div className="page-header-row mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">פרויקט חדש</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            יצירת פרויקט במצב הצעה (טיוטה) עם לקוח ותאריכי אירוע.
-          </p>
+          <HeaderInfoModal label="הנחיות פרויקט חדש">
+            <p>יצירת פרויקט במצב הצעה (טיוטה) עם לקוח ותאריכי אירוע.</p>
+          </HeaderInfoModal>
         </div>
         <Button asChild variant="outline">
-          <Link href="/projects">חזרה לרשימה</Link>
+          <Link className="inline-flex items-center gap-1.5" href="/projects">
+            <ArrowRightCircle className="h-4 w-4" />
+            חזרה לרשימה
+          </Link>
         </Button>
       </div>
 

@@ -3,6 +3,7 @@ import { Download, FileUp } from "lucide-react";
 
 import { listClientsWithProjectStats } from "@/actions/clients";
 import { ClientImportForm } from "@/components/clients/client-import-form";
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,11 +40,11 @@ export default async function ClientsPage({
   return (
     <main className="container-page py-8">
       <div className="page-header-row mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">לקוחות</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            מאגר לקוחות, חיפוש בשם / טלפון / דוא״ל, ומעבר לפרויקטים לפי לקוח.
-          </p>
+          <HeaderInfoModal label="הנחיות מסך לקוחות">
+            <p>מאגר לקוחות, חיפוש בשם / טלפון / דוא״ל, ומעבר לפרויקטים לפי לקוח.</p>
+          </HeaderInfoModal>
         </div>
         <div className="flex flex-wrap gap-2">
           {canCreate ? (

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowRightCircle } from "lucide-react";
 
 import { getClientById } from "@/actions/clients";
 import { listProjects } from "@/actions/projects";
 import { EditClientForm } from "@/components/clients/edit-client-form";
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { ProjectStatusBadge } from "@/components/projects/project-status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,14 +58,20 @@ export default async function ClientDetailPage({
   return (
     <main className="container-page py-8">
       <div className="page-header-row mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">{client.name}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            לקוח במערכת · נוצר {formatDateTimeByPreference(client.created_at, dateStyle)}
-          </p>
+          <HeaderInfoModal label="הנחיות כרטיס לקוח">
+            <p>לקוח במערכת.</p>
+            <p>
+              נוצר {formatDateTimeByPreference(client.created_at, dateStyle)}.
+            </p>
+          </HeaderInfoModal>
         </div>
         <Button asChild variant="outline">
-          <Link href="/clients">חזרה לרשימה</Link>
+          <Link className="inline-flex items-center gap-1.5" href="/clients">
+            <ArrowRightCircle className="h-4 w-4" />
+            חזרה לרשימה
+          </Link>
         </Button>
       </div>
 

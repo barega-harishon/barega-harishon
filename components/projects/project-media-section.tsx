@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -9,10 +9,8 @@ import {
   uploadProjectSitePhotos,
   uploadProjectSketch,
 } from "@/actions/project-media-upload";
-import { setProjectSitePhotoPathsRawFromForm } from "@/actions/project-site-details";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import type { SignedMediaRef } from "@/types/signed-media";
 
 interface ProjectMediaSectionProps {
@@ -20,7 +18,6 @@ interface ProjectMediaSectionProps {
   photos: SignedMediaRef[];
   sketchPath: string | null;
   sketchSignedUrl: string | null;
-  manualPhotoPathsText: string;
 }
 
 export function ProjectMediaSection({
@@ -28,23 +25,12 @@ export function ProjectMediaSection({
   photos,
   sketchPath,
   sketchSignedUrl,
-  manualPhotoPathsText,
 }: ProjectMediaSectionProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ variant: "error" | "success"; text: string } | null>(
     null,
   );
-  const [pathsState, pathsAction, pathsPending] = useActionState(
-    setProjectSitePhotoPathsRawFromForm,
-    null,
-  );
-
-  useEffect(() => {
-    if (pathsState?.success) {
-      router.refresh();
-    }
-  }, [pathsState, router]);
 
   function handlePhotosSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -158,21 +144,23 @@ export function ProjectMediaSection({
           <input name="projectId" type="hidden" value={projectId} />
           <div className="space-y-1.5">
             <label className="text-sm font-medium" htmlFor="photos">
-              העלאת תמונות (עד 12, עד 5MB כל אחת)
+              העלאת תמונות (עד 12, עד 20MB כל אחת)
             </label>
-            <Input
-              accept="image/jpeg,image/png,image/webp"
-              className="cursor-pointer"
-              id="photos"
-              multiple
-              name="photos"
-              required
-              type="file"
-            />
+            <div className="flex items-center gap-2 rounded-[var(--radius)] border border-border/90 bg-input p-1 pe-2">
+              <Input
+                accept="image/jpeg,image/png,image/webp"
+                className="cursor-pointer border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                id="photos"
+                multiple
+                name="photos"
+                required
+                type="file"
+              />
+              <Button disabled={pending} size="sm" type="submit" variant="outline">
+                {pending ? "מעלים…" : "העלאה"}
+              </Button>
+            </div>
           </div>
-          <Button disabled={pending} type="submit" variant="outline">
-            {pending ? "מעלים…" : "העלאת תמונות"}
-          </Button>
         </form>
       </section>
 
@@ -216,46 +204,24 @@ export function ProjectMediaSection({
           <input name="projectId" type="hidden" value={projectId} />
           <div className="space-y-1.5">
             <label className="text-sm font-medium" htmlFor="sketch">
-              העלאת סקיצה (תמונה או PDF, עד 8MB)
+              העלאת סקיצה (תמונה או PDF, עד 20MB)
             </label>
-            <Input
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              className="cursor-pointer"
-              id="sketch"
-              name="sketch"
-              type="file"
-            />
+            <div className="flex items-center gap-2 rounded-[var(--radius)] border border-border/90 bg-input p-1 pe-2">
+              <Input
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                className="cursor-pointer border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                id="sketch"
+                name="sketch"
+                type="file"
+              />
+              <Button disabled={pending} size="sm" type="submit" variant="outline">
+                {pending ? "מעלים…" : "העלאה"}
+              </Button>
+            </div>
           </div>
-          <Button disabled={pending} type="submit" variant="outline">
-            {pending ? "מעלים…" : "העלאת סקיצה"}
-          </Button>
         </form>
       </section>
 
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">נתיבים ידניים (מתקדם)</h3>
-        <p className="text-xs text-muted-foreground">
-          מחליף את רשימת נתיבי התמונות השמורים במסד. השתמשו רק אם יודעים את הנתיב המדויק ב־bucket.
-        </p>
-        <form action={pathsAction} className="space-y-3">
-          <input name="projectId" type="hidden" value={projectId} />
-          <Textarea
-            className="min-h-[100px] font-mono text-xs"
-            defaultValue={manualPhotoPathsText}
-            name="raw"
-            placeholder={"שורה לכל נתיב בתוך ה־bucket project-site-photos"}
-          />
-          {pathsState && !pathsState.success ? (
-            <p className="text-sm text-destructive">{pathsState.message}</p>
-          ) : null}
-          {pathsState?.success ? (
-            <p className="text-sm text-emerald-700 dark:text-emerald-400">{pathsState.message}</p>
-          ) : null}
-          <Button disabled={pathsPending} type="submit" variant="ghost">
-            {pathsPending ? "שומרים…" : "עדכון נתיבים ידניים"}
-          </Button>
-        </form>
-      </section>
     </div>
   );
 }

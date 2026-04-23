@@ -418,3 +418,134 @@ export async function createEquipmentPickTransactions(
     return { success: false, message: getSafeClientErrorMessage() };
   }
 }
+
+const autoProjectPickSchema = z.object({
+  projectId: z.string().uuid(),
+  equipmentId: z.string().uuid(),
+});
+
+export async function autoPickProjectEquipmentRemaining(
+  payload: unknown,
+): Promise<ActionResult<{ inserted: number }>> {
+  const parsed = autoProjectPickSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { success: false, message: "נתונים לא תקינים לפעולת ליקוט אוטומטית." };
+  }
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: line } = await supabase
+      .from("project_equipment")
+      .select("quantity, picked_qty")
+      .eq("project_id", parsed.data.projectId)
+      .eq("equipment_id", parsed.data.equipmentId)
+      .maybeSingle();
+
+    const requiredQty = Number(line?.quantity ?? 0);
+    const alreadyPicked = Number(line?.picked_qty ?? 0);
+    const remainingNeed = Math.max(0, requiredQty - alreadyPicked);
+    if (remainingNeed <= 0) {
+      return { success: false, message: "אין יתרה חסרה לליקוט בפריט זה." };
+    }
+
+    const batches = await listEquipmentBatchAvailability(parsed.data.equipmentId);
+    const fifo = [...batches].sort((a, b) => {
+      const aTs = new Date(a.purchased_at).getTime();
+      const bTs = new Date(b.purchased_at).getTime();
+      return aTs - bTs;
+    });
+
+    let remaining = remainingNeed;
+    const selections: EquipmentPickSelectionInput[] = [];
+    for (const batch of fifo) {
+      if (remaining <= 0) {
+        break;
+      }
+      if (batch.remaining_qty <= 0) {
+        continue;
+      }
+      const qty = Math.min(remaining, batch.remaining_qty);
+      if (qty <= 0) {
+        continue;
+      }
+      selections.push({ batchId: batch.id, quantity: qty, checked: true });
+      remaining -= qty;
+    }
+
+    if (selections.length === 0) {
+      return { success: false, message: "אין אצוות זמינות לליקוט עבור פריט זה." };
+    }
+
+    return createEquipmentPickTransactions({
+      equipmentId: parsed.data.equipmentId,
+      projectId: parsed.data.projectId,
+      source: "project",
+      txType: "pick",
+      selections,
+    });
+  } catch (error) {
+    console.error("autoPickProjectEquipmentRemaining failed", toServerError(error));
+    return { success: false, message: getSafeClientErrorMessage() };
+  }
+}
+
+export async function autoReturnProjectEquipmentPicked(
+  payload: unknown,
+): Promise<ActionResult<{ inserted: number }>> {
+  const parsed = autoProjectPickSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { success: false, message: "נתונים לא תקינים לפעולת החזרה אוטומטית." };
+  }
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: projectTx } = await supabase
+      .from("equipment_pick_transactions")
+      .select("batch_id, quantity, tx_type")
+      .eq("project_id", parsed.data.projectId)
+      .eq("equipment_id", parsed.data.equipmentId)
+      .eq("source", "project");
+
+    const netByBatch = new Map<string, number>();
+    for (const row of projectTx ?? []) {
+      const batchId = String(row.batch_id ?? "");
+      if (!batchId) {
+        continue;
+      }
+      const qty = Number(row.quantity);
+      if (Number.isNaN(qty) || qty <= 0) {
+        continue;
+      }
+      const txType = (row.tx_type as EquipmentStockTxType | null) ?? "pick";
+      const signed = txType === "return" ? -Math.abs(qty) : Math.abs(qty);
+      netByBatch.set(batchId, (netByBatch.get(batchId) ?? 0) + signed);
+    }
+
+    const selections: EquipmentPickSelectionInput[] = [];
+    for (const [batchId, netPicked] of netByBatch) {
+      if (netPicked <= 0) {
+        continue;
+      }
+      selections.push({
+        batchId,
+        quantity: netPicked,
+        checked: true,
+      });
+    }
+
+    if (selections.length === 0) {
+      return { success: false, message: "אין כמות שנלקטה להחזרה בפריט זה." };
+    }
+
+    return createEquipmentPickTransactions({
+      equipmentId: parsed.data.equipmentId,
+      projectId: parsed.data.projectId,
+      source: "project",
+      txType: "return",
+      selections,
+    });
+  } catch (error) {
+    console.error("autoReturnProjectEquipmentPicked failed", toServerError(error));
+    return { success: false, message: getSafeClientErrorMessage() };
+  }
+}

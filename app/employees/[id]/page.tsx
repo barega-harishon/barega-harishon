@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowRightCircle } from "lucide-react";
 
 import { getEmployeeById, listEmployeeFileEvents } from "@/actions/employees";
 import { EmployeeAuthAccountSection } from "@/components/employees/employee-auth-account-section";
 import { EmployeeFileEventsList } from "@/components/employees/employee-file-events-list";
 import { EmployeeFilesCell, type EmployeeFileLink } from "@/components/employees/employee-files-cell";
 import { EmployeeFilesUploadForm } from "@/components/employees/employee-files-upload-form";
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { Button } from "@/components/ui/button";
 import { getCurrentAppRoles } from "@/lib/auth/current-profile";
 import { getDateStylePreference } from "@/lib/date-style-server";
@@ -79,14 +81,17 @@ export default async function EmployeeDetailsPage({ params, searchParams }: Prop
   return (
     <main className="container-page py-8">
       <div className="page-header-row mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">{row.name}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            כרטיס עובד: פרטים אישיים, בנק, מסמכים ורשיונות.
-          </p>
+          <HeaderInfoModal label="הנחיות כרטיס עובד">
+            <p>כרטיס עובד: פרטים אישיים, בנק, מסמכים ורשיונות.</p>
+          </HeaderInfoModal>
         </div>
         <Button asChild variant="outline">
-          <Link href="/employees">חזרה לצוות</Link>
+          <Link className="inline-flex items-center gap-1.5" href="/employees">
+            <ArrowRightCircle className="h-4 w-4" />
+            חזרה לצוות
+          </Link>
         </Button>
       </div>
 
@@ -101,7 +106,10 @@ export default async function EmployeeDetailsPage({ params, searchParams }: Prop
             להזמנת משתמש חדש, ואז חזרו לכאן לקישור.
           </p>
           <Button asChild className="mt-3" size="sm" variant="outline">
-            <Link href="/employees">חזרה לרשימת הצוות</Link>
+            <Link className="inline-flex items-center gap-1.5" href="/employees">
+              <ArrowRightCircle className="h-4 w-4" />
+              חזרה לרשימת הצוות
+            </Link>
           </Button>
         </div>
       ) : null}

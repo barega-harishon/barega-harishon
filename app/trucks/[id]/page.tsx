@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowRightCircle } from "lucide-react";
 
 import { listEmployeeOptionsForAssignments } from "@/actions/assignments";
 import { getTruckActiveProjectAssignment } from "@/actions/project-trucks";
@@ -45,7 +46,10 @@ export default async function EditTruckPage({
       <div className="page-header-row mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">עריכת משאית</h1>
         <Button asChild variant="outline">
-          <Link href="/trucks">חזרה לרשימה</Link>
+          <Link className="inline-flex items-center gap-1.5" href="/trucks">
+            <ArrowRightCircle className="h-4 w-4" />
+            חזרה לרשימה
+          </Link>
         </Button>
       </div>
 

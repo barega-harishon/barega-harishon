@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { ArrowRightCircle } from "lucide-react";
 
 import { listEmployeeOptionsForAssignments } from "@/actions/assignments";
 import { mapTruckIdToActiveProject } from "@/actions/project-trucks";
 import { listTrucks } from "@/actions/trucks";
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { NewTruckForm } from "@/components/trucks/new-truck-form";
 import { Button } from "@/components/ui/button";
@@ -25,14 +27,17 @@ export default async function TrucksPage() {
   return (
     <main className="container-page py-8">
       <div className="page-header-row mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">משאיות</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            ניהול ציוד הובלה. עריכה למנהל תפעול, מחסן ואדמין; משרד רואה בלבד.
-          </p>
+          <HeaderInfoModal label="הנחיות מסך משאיות">
+            <p>ניהול ציוד הובלה. עריכה למנהל תפעול, מחסן ואדמין; משרד רואה בלבד.</p>
+          </HeaderInfoModal>
         </div>
         <Button asChild className={selectorButtonClass(false)} variant="outline">
-          <Link href="/projects">חזרה לפרויקטים</Link>
+          <Link className="inline-flex items-center gap-1.5" href="/projects">
+            <ArrowRightCircle className="h-4 w-4" />
+            חזרה לפרויקטים
+          </Link>
         </Button>
       </div>
 

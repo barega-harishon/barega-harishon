@@ -5,6 +5,7 @@ import {
   listMyRecentTimeEntries,
   listTimeEntryProjectOptionsForMe,
 } from "@/actions/time-entries";
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { FieldTimeForm } from "@/components/field/field-time-form";
 import {
   Card,
@@ -53,10 +54,12 @@ export default async function FieldTimePage({
   return (
     <main className="container-page space-y-8 py-6">
       <div className="page-intro">
-        <h1 className="text-xl font-semibold">דיווח שעות</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          רק לפרויקטים שאתם משובצים אליהם.
-        </p>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-semibold">דיווח שעות</h1>
+          <HeaderInfoModal label="הנחיות דיווח שעות">
+            <p>רק לפרויקטים שאתם משובצים אליהם.</p>
+          </HeaderInfoModal>
+        </div>
       </div>
 
       <Card>

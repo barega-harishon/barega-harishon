@@ -62,7 +62,7 @@ export async function listEquipmentOptions(): Promise<EquipmentOption[]> {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from("equipment")
-    .select("id, name, category, total_qty")
+    .select("id, name, category, total_qty, warehouse_location")
     .order("name", { ascending: true });
 
   if (error || !data) {
@@ -163,7 +163,7 @@ export async function listProjectEquipmentLines(
       quantity,
       picked_qty,
       equipment_id,
-      equipment:equipment_id ( id, name, category, total_qty )
+      equipment:equipment_id ( id, name, category, total_qty, warehouse_location )
     `,
     )
     .eq("project_id", parsed.data)

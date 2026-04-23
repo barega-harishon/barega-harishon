@@ -3,6 +3,7 @@ export interface EquipmentOption {
   name: string;
   category: string;
   total_qty: number;
+  warehouse_location?: string | null;
 }
 
 export interface EquipmentAvailability {
@@ -21,5 +22,6 @@ export interface ProjectEquipmentLine {
     name: string;
     category: string;
     total_qty: number;
+    warehouse_location?: string | null;
   } | null;
 }

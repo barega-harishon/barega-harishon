@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ArrowRightCircle } from "lucide-react";
 
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,14 +30,17 @@ export default async function AdminPermissionsPage() {
   return (
     <main className="container-page py-8">
       <div className="page-header-row mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">מטריצת הרשאות לפי תפקיד</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            סיכום יכולות לפי סוג משתמש במערכת הנוכחית. מיועד למנהל מערכת בלבד.
-          </p>
+          <HeaderInfoModal label="הנחיות מטריצת הרשאות">
+            <p>סיכום יכולות לפי סוג משתמש במערכת הנוכחית. מיועד למנהל מערכת בלבד.</p>
+          </HeaderInfoModal>
         </div>
         <Button asChild className={selectorButtonClass(false)} variant="outline">
-          <Link href="/dashboard">חזרה לדשבורד</Link>
+          <Link className="inline-flex items-center gap-1.5" href="/dashboard">
+            <ArrowRightCircle className="h-4 w-4" />
+            חזרה לדשבורד
+          </Link>
         </Button>
       </div>
 

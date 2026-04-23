@@ -19,19 +19,19 @@ export function EquipmentToolbarActions() {
             הוספת פרטים
           </Button>
         </ModalTrigger>
-        <ModalContent className="w-[min(96vw,64rem)]">
+        <ModalContent className="max-h-[88vh] w-[min(96vw,64rem)] overflow-y-auto">
           <ModalHeader>
             <ModalTitle>הוספת פרטים</ModalTitle>
           </ModalHeader>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2 rounded-[var(--radius)] border border-border p-3">
+          <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2 rounded-[var(--radius)] border border-border p-3">
               <p className="inline-flex items-center gap-2 text-sm font-medium">
                 <PlusCircle className="h-4 w-4 text-muted-foreground" />
                 הוספת פריט
               </p>
               <NewEquipmentForm />
             </div>
-            <div className="space-y-2 rounded-[var(--radius)] border border-border p-3">
+              <div className="space-y-2 rounded-[var(--radius)] border border-border p-3">
               <p className="inline-flex items-center gap-2 text-sm font-medium">
                 <FileUp className="h-4 w-4 text-muted-foreground" />
                 ייבוא אקסל

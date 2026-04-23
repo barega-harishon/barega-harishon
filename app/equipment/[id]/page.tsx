@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowRightCircle } from "lucide-react";
 
 import { listEquipmentBatchAvailability } from "@/actions/equipment-batches";
 import { getEquipmentRowById } from "@/actions/equipment-catalog";
@@ -31,7 +32,10 @@ export default async function EditEquipmentPage({
       <div className="page-header-row mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">עריכת ציוד</h1>
         <Button asChild variant="outline">
-          <Link href="/equipment">חזרה למלאי</Link>
+          <Link className="inline-flex items-center gap-1.5" href="/equipment">
+            <ArrowRightCircle className="h-4 w-4" />
+            חזרה למלאי
+          </Link>
         </Button>
       </div>
       <div className="max-w-2xl space-y-8">

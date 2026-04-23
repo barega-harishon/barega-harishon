@@ -8,6 +8,32 @@ import type { ActionResult } from "@/types/common";
 import { zCladdingSwatchField } from "@/lib/inquiry/cladding-options";
 import { sanitizeText } from "@/utils/sanitize";
 
+const zOptionalNumberField = z.preprocess(
+  (value) => {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    if (typeof value === "string" && value.trim() === "") {
+      return null;
+    }
+    return value;
+  },
+  z.coerce.number().min(0).max(100000).nullable(),
+);
+
+const zOptionalIntField = z.preprocess(
+  (value) => {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    if (typeof value === "string" && value.trim() === "") {
+      return null;
+    }
+    return value;
+  },
+  z.coerce.number().int().min(0).max(100000).nullable(),
+);
+
 const upsertSchema = z.object({
   projectId: z.string().uuid(),
   accessNotes: z
@@ -17,6 +43,10 @@ const upsertSchema = z.object({
     .transform((v) => (v ? sanitizeText(v) : "")),
   carpetCladdingColor: zCladdingSwatchField,
   fabricCladdingColor: zCladdingSwatchField,
+  carpetCladdingMeters: zOptionalNumberField.optional(),
+  carpetCladdingRolls: zOptionalIntField.optional(),
+  fabricCladdingMeters: zOptionalNumberField.optional(),
+  fabricCladdingRolls: zOptionalIntField.optional(),
   notes: z
     .string()
     .max(2000, "הערות ארוכות מדי")
@@ -77,6 +107,10 @@ export async function upsertProjectSiteDetails(
           cladding_color: null,
           carpet_cladding_color: parsed.data.carpetCladdingColor || null,
           fabric_cladding_color: parsed.data.fabricCladdingColor || null,
+          carpet_cladding_meters: parsed.data.carpetCladdingMeters ?? null,
+          carpet_cladding_rolls: parsed.data.carpetCladdingRolls ?? null,
+          fabric_cladding_meters: parsed.data.fabricCladdingMeters ?? null,
+          fabric_cladding_rolls: parsed.data.fabricCladdingRolls ?? null,
           notes: parsed.data.notes || null,
           sketch_path: sketchPath,
           site_photo_paths: sitePhotoPaths,
@@ -137,7 +171,7 @@ export async function setProjectSitePhotoPathsRaw(
     const { data: row } = await supabase
       .from("project_site_details")
       .select(
-        "access_notes, cladding_color, carpet_cladding_color, fabric_cladding_color, notes, sketch_path, site_photo_paths, submitted_by_client",
+        "access_notes, cladding_color, carpet_cladding_color, fabric_cladding_color, carpet_cladding_meters, carpet_cladding_rolls, fabric_cladding_meters, fabric_cladding_rolls, notes, sketch_path, site_photo_paths, submitted_by_client",
       )
       .eq("project_id", idParsed.data)
       .maybeSingle();
@@ -149,6 +183,10 @@ export async function setProjectSitePhotoPathsRaw(
         cladding_color: row?.cladding_color ?? null,
         carpet_cladding_color: row?.carpet_cladding_color ?? null,
         fabric_cladding_color: row?.fabric_cladding_color ?? null,
+        carpet_cladding_meters: row?.carpet_cladding_meters ?? null,
+        carpet_cladding_rolls: row?.carpet_cladding_rolls ?? null,
+        fabric_cladding_meters: row?.fabric_cladding_meters ?? null,
+        fabric_cladding_rolls: row?.fabric_cladding_rolls ?? null,
         notes: row?.notes ?? null,
         sketch_path: row?.sketch_path ?? null,
         site_photo_paths: paths,
@@ -183,6 +221,10 @@ export async function upsertProjectSiteDetailsFromForm(
     accessNotes: formData.get("accessNotes"),
     carpetCladdingColor: formData.get("carpetCladdingColor"),
     fabricCladdingColor: formData.get("fabricCladdingColor"),
+    carpetCladdingMeters: formData.get("carpetCladdingMeters"),
+    carpetCladdingRolls: formData.get("carpetCladdingRolls"),
+    fabricCladdingMeters: formData.get("fabricCladdingMeters"),
+    fabricCladdingRolls: formData.get("fabricCladdingRolls"),
     notes: formData.get("notes"),
     submittedByClient: formData.get("submittedByClient"),
   });

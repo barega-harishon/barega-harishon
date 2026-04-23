@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { ArrowRightCircle } from "lucide-react";
 import { z } from "zod";
 
 import { listEquipmentBatchAvailability } from "@/actions/equipment-batches";
 import { listEquipmentOptions } from "@/actions/project-equipment";
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { BatchPickingForm } from "@/components/equipment/batch-picking-form";
 import { EquipmentCategoryAccordion } from "@/components/equipment/equipment-category-accordion";
 import { Button } from "@/components/ui/button";
@@ -43,14 +45,17 @@ export default async function EquipmentPickingPage({
   return (
     <main className="container-page py-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">ליקוט מחסן</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            בחרו פריט ציוד, סמנו אצוות, הזינו כמות ולחצו על אישור ליקוט.
-          </p>
+          <HeaderInfoModal label="הנחיות ליקוט מחסן">
+            <p>בחרו פריט ציוד, סמנו אצוות, הזינו כמות ולחצו על אישור ליקוט.</p>
+          </HeaderInfoModal>
         </div>
         <Button asChild variant="outline">
-          <Link href="/equipment">חזרה למלאי</Link>
+          <Link className="inline-flex items-center gap-1.5" href="/equipment">
+            <ArrowRightCircle className="h-4 w-4" />
+            חזרה למלאי
+          </Link>
         </Button>
       </div>
 

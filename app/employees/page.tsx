@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { ArrowRightCircle } from "lucide-react";
 
 import { listEmployeesWithHealth } from "@/actions/employees";
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import {
   type EmployeeFileLink,
@@ -80,15 +82,20 @@ export default async function EmployeesPage() {
   return (
     <main className="container-page py-8">
       <div className="page-header-row mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">צוות</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            אנשי צוות ב-Supabase (טבלת <code className="rounded bg-muted px-1">employees</code>) — שיבוץ
-            לפרויקטים, פרטי קשר, בנק ומסמכים. הוספה: משרד / תפעול / אדמין.
-          </p>
+          <HeaderInfoModal label="הנחיות מסך צוות">
+            <p>
+              אנשי צוות ב-Supabase (טבלת <code className="rounded bg-muted px-1">employees</code>) — שיבוץ
+              לפרויקטים, פרטי קשר, בנק ומסמכים. הוספה: משרד / תפעול / אדמין.
+            </p>
+          </HeaderInfoModal>
         </div>
         <Button asChild className={selectorButtonClass(false)} variant="outline">
-          <Link href="/projects">חזרה לפרויקטים</Link>
+          <Link className="inline-flex items-center gap-1.5" href="/projects">
+            <ArrowRightCircle className="h-4 w-4" />
+            חזרה לפרויקטים
+          </Link>
         </Button>
       </div>
 

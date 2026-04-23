@@ -6,6 +6,7 @@ import {
   ProjectCalendarMonth,
 } from "@/components/projects/project-calendar-month";
 import { ProjectCalendarLegend } from "@/components/projects/calendar-legend";
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { Button } from "@/components/ui/button";
 import { getDateStylePreference } from "@/lib/date-style-server";
@@ -51,13 +52,17 @@ export default async function FieldCalendarPage({
 
   return (
     <main className="container-page py-6">
-      <h1 className="text-xl font-semibold">היומן שלי</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        רק פרויקטים שאתם משובצים אליהם.{" "}
-        <Link className="underline-offset-2 hover:underline" href="/projects/calendar">
-          יומן ארגוני מלא
-        </Link>
-      </p>
+      <div className="flex items-center gap-2">
+        <h1 className="text-xl font-semibold">היומן שלי</h1>
+        <HeaderInfoModal label="הנחיות היומן שלי">
+          <p>
+            רק פרויקטים שאתם משובצים אליהם.{" "}
+            <Link className="underline-offset-2 hover:underline" href="/projects/calendar">
+              יומן ארגוני מלא
+            </Link>
+          </p>
+        </HeaderInfoModal>
+      </div>
 
       <div className="page-header-row mb-4 mt-6 flex flex-wrap items-center justify-between gap-3">
         <div className="text-center">

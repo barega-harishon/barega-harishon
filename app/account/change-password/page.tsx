@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ArrowRightCircle } from "lucide-react";
 
 import { MandatoryChangePasswordForm } from "@/components/account/mandatory-change-password-form";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
@@ -36,7 +37,10 @@ export default async function MandatoryChangePasswordPage() {
           </CardHeader>
           <CardContent>
             <Button asChild className={selectorButtonClass(false)} variant="outline">
-              <Link href="/dashboard">חזרה לדשבורד</Link>
+              <Link className="inline-flex items-center gap-1.5" href="/dashboard">
+                <ArrowRightCircle className="h-4 w-4" />
+                חזרה לדשבורד
+              </Link>
             </Button>
           </CardContent>
         </Card>

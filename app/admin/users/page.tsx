@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ArrowRightCircle } from "lucide-react";
 import { z } from "zod";
 
 import { listAdminUserRows } from "@/actions/admin-users";
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { CreateUserWithRoleForm } from "@/components/admin/create-user-with-role-form";
 import { InviteUserWithRoleForm } from "@/components/admin/invite-user-with-role-form";
 import { ProfileRoleUpdateForm } from "@/components/admin/profile-role-update-form";
@@ -70,14 +72,17 @@ export default async function AdminUsersPage({
   return (
     <main className="container-page py-8">
       <div className="page-header-row mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">משתמשים ותפקידים</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            ניהול תפקידי אפליקציה ב־profiles, יצירת משתמשים עם סיסמה ראשונית, או הזמנה במייל (אופציונלי).
-          </p>
+          <HeaderInfoModal label="הנחיות משתמשים ותפקידים">
+            <p>ניהול תפקידי אפליקציה ב־profiles, יצירת משתמשים עם סיסמה ראשונית, או הזמנה במייל (אופציונלי).</p>
+          </HeaderInfoModal>
         </div>
         <Button asChild className={selectorButtonClass(false)} variant="outline">
-          <Link href="/dashboard">חזרה לדשבורד</Link>
+          <Link className="inline-flex items-center gap-1.5" href="/dashboard">
+            <ArrowRightCircle className="h-4 w-4" />
+            חזרה לדשבורד
+          </Link>
         </Button>
       </div>
 

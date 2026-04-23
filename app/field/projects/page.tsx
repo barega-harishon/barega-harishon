@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { listMyAssignedProjectsBrief } from "@/actions/projects";
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { PROJECT_STATUS_LABELS } from "@/types/projects";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +12,12 @@ export default async function FieldProjectsPage() {
   return (
     <main className="container-page py-6">
       <div className="page-intro">
-        <h1 className="text-xl font-semibold">הפרויקטים שלי</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          תצוגת שטח מהירה; פרטים מלאים ומדיה — במסך הפרויקט הראשי.
-        </p>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-semibold">הפרויקטים שלי</h1>
+          <HeaderInfoModal label="הנחיות הפרויקטים שלי">
+            <p>תצוגת שטח מהירה; פרטים מלאים ומדיה — במסך הפרויקט הראשי.</p>
+          </HeaderInfoModal>
+        </div>
       </div>
       <ul className="mt-6 space-y-3">
         {projects.length === 0 ? (

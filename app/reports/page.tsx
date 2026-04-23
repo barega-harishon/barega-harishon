@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { ArrowRightCircle } from "lucide-react";
 
 import { getBusinessReportsBundle } from "@/actions/reports";
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { PaymentBars } from "@/components/dashboard/payment-bars";
 import { ProjectStatusBadge } from "@/components/projects/project-status-badge";
@@ -43,7 +45,10 @@ export default async function BusinessReportsPage({
           <strong className="text-foreground">אדמין</strong> בלבד.
         </p>
         <Button asChild className="mt-6" variant="outline">
-          <Link href="/dashboard">חזרה לדשבורד</Link>
+          <Link className="inline-flex items-center gap-1.5" href="/dashboard">
+            <ArrowRightCircle className="h-4 w-4" />
+            חזרה לדשבורד
+          </Link>
         </Button>
       </main>
     );
@@ -61,11 +66,11 @@ export default async function BusinessReportsPage({
   return (
     <main className="container-page space-y-8 py-8">
       <div className="page-header-row flex flex-wrap items-start justify-between gap-4">
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">דוחות עסקיים</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            סיכומי צינור, תשלומים ופרויקטים — לפי נתוני המערכת והרשאות גבייה.
-          </p>
+          <HeaderInfoModal label="הנחיות דוחות עסקיים">
+            <p>סיכומי צינור, תשלומים ופרויקטים — לפי נתוני המערכת והרשאות גבייה.</p>
+          </HeaderInfoModal>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button asChild size="sm" className={selectorButtonClass(false)} variant="outline">

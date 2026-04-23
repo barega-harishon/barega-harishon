@@ -93,7 +93,7 @@ export async function uploadProjectSitePhotos(
 
     for (const file of files) {
       if (file.size > MAX_SITE_PHOTO_BYTES) {
-        return { success: false, message: "קובץ גדול מדי (מקסימום 5MB לתמונה)." };
+        return { success: false, message: "קובץ גדול מדי (מקסימום 20MB לתמונה)." };
       }
 
       if (!SITE_PHOTO_MIME.has(file.type)) {
@@ -209,7 +209,7 @@ export async function uploadProjectSketch(
   }
 
   if (file.size > MAX_SKETCH_BYTES) {
-    return { success: false, message: "קובץ הסקיצה גדול מדי (מקסימום 8MB)." };
+    return { success: false, message: "קובץ הסקיצה גדול מדי (מקסימום 20MB)." };
   }
 
   if (!SKETCH_MIME.has(file.type)) {

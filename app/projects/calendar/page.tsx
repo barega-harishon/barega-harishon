@@ -6,6 +6,7 @@ import {
   groupCalendarRowsByLocalDay,
   ProjectCalendarMonth,
 } from "@/components/projects/project-calendar-month";
+import { HeaderInfoModal } from "@/components/common/header-info-modal";
 import { selectorButtonClass } from "@/components/common/selector-button-styles";
 import { Button } from "@/components/ui/button";
 import { getDateStylePreference } from "@/lib/date-style-server";
@@ -53,13 +54,15 @@ export default async function ProjectCalendarPage({
   return (
     <main className="container-page py-8">
       <div className="page-header-row mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">יומן פרויקטים</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            לפי <strong className="text-foreground">תאריך אירוע</strong>; אם חסר —{" "}
-            <strong className="text-foreground">הקמה</strong>; אם גם חסר —{" "}
-            <strong className="text-foreground">פירוק</strong>.
-          </p>
+          <HeaderInfoModal label="הנחיות יומן פרויקטים">
+            <p>
+              לפי <strong className="text-foreground">תאריך אירוע</strong>; אם חסר —{" "}
+              <strong className="text-foreground">הקמה</strong>; אם גם חסר —{" "}
+              <strong className="text-foreground">פירוק</strong>.
+            </p>
+          </HeaderInfoModal>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild className={selectorButtonClass(false)} variant="outline">
